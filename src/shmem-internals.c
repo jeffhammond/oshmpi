@@ -1,6 +1,7 @@
 /* BSD-2 License.  Written by Jeff Hammond. */
 
 #include "shmem-internals.h"
+#include "lock.h"
 
 /* this code deals with SHMEM communication out of symmetric but non-heap data */
 #if defined(__APPLE__)
@@ -206,6 +207,7 @@ void __shmem_initialize(void)
         MPI_Win_lock_all(0, shmem_sheap_win);
         /* this is the hack-tastic sheap initialization */
         shmem_sheap_current_ptr = shmem_sheap_base_ptr;
+
 #if SHMEM_DEBUG > 1
         printf("[%d] shmem_sheap_current_ptr  = %p  \n", shmem_world_rank, shmem_sheap_current_ptr );
         fflush(stdout);
@@ -257,8 +259,8 @@ void __shmem_initialize(void)
 	    */
         }
 
-        /* allocate Mutex */
-	MCS_Mutex_create(shmem_world_size-1, SHMEM_COMM_WORLD, &hdl);
+        /* allocate lock metadata */
+	_allock(SHMEM_COMM_WORLD);
 
 #if COMM_CACHING
         shmem_comm_cache_size = 16;
@@ -287,8 +289,8 @@ void __shmem_finalize(void)
     if (!flag) {
         if (shmem_is_initialized && !shmem_is_finalized) {
 
-       	/* clear locking window */
-	MCS_Mutex_free(&hdl);
+    /* clear locking window */
+    _deallock();
 #if COMM_CACHING
             for (int i=0; i<shmem_comm_cache_size; i++) {
                 if (comm_cache[i].comm != MPI_COMM_NULL) {
@@ -322,6 +324,27 @@ void __shmem_finalize(void)
         MPI_Finalize();
     }
     return;
+}
+
+void* shmem_get_next(ptrdiff_t incr)
+{
+    char *orig = shmem_sheap_current_ptr;
+
+    shmem_sheap_current_ptr += incr;
+    if ((char*)shmem_sheap_current_ptr < (char*) shmem_sheap_base_ptr) {
+#if SHMEM_DEBUG > 1
+    __shmem_warn("symmetric heap pointer pushed below start");
+#endif
+	shmem_sheap_current_ptr = (char*) shmem_sheap_base_ptr;
+    } else if ((char *)shmem_sheap_current_ptr - (char*) shmem_sheap_base_ptr >
+	    shmem_sheap_size) {
+#if SHMEM_DEBUG > 1
+    __shmem_warn("symmetric heap overrun");
+#endif
+	shmem_sheap_current_ptr = orig;
+	orig = (void*) -1;
+    }
+    return orig;
 }
 
 /* quiet and fence are all about ordering.  

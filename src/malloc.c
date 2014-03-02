@@ -479,35 +479,26 @@ MAX_RELEASE_CHECK_RATE   default: 4095 unless not HAVE_MMAP
   disable, set to MAX_SIZE_T. This may lead to a very slight speed
   improvement at the expense of carrying around more memory.
 */
-
 /* BEGIN SHMEM CHANGES */
 #include <stdio.h>
 #include <time.h>
 #include <stdint.h>
-#include "shmem_internal.h"
+#include "shmem-internals.h"
 
 #define USE_DL_PREFIX 1
 #define HAVE_MORECORE 1
-#define MORECORE shmem_internal_get_next
+#define MORECORE shmem_get_next
 #define MORECORE_CONTIGUOUS 1
 #define HAVE_MMAP 0
 #define HAVE_MREMAP 0
-#define USAGE_ERROR_ACTION(m, p)                                        \
-    do {                                                                \
-        fprintf(stderr,                                                 \
-                "[%03d] ERROR: symmetric heap usage error detected, possibly at 0x%lx.\n", \
-                shmem_internal_my_pe, (unsigned long) p);               \
-         fflush(NULL);                                                  \
-        ABORT;                                                          \
+#define USAGE_ERROR_ACTION(m, p)                                     \
+    do {                                                             \
+    __shmem_abort((unsigned long) p, "symmetric heap usage error detected");         \
     } while (0)
 
 #define CORRUPTION_ERROR_ACTION(m)                                      \
     do {                                                                \
-        fprintf(stderr,                                                 \
-                "[%03d] ERROR: symmetric heap data structure corruption found.\n", \
-                shmem_internal_my_pe);                                  \
-         fflush(NULL);                                                  \
-        ABORT;                                                          \
+    __shmem_abort((unsigned long) p, "symmetric heap data structure corruption found"); \
     } while (0)
 
 /* END SHMEM CHANGES */

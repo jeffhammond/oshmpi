@@ -5,7 +5,6 @@
 
 #include "shmemconf.h"
 #include "shmem.h"
-#include "mcs-lock.h"
 
 /* configuration settings */
 /* This is the only support mode right now. */
@@ -43,7 +42,7 @@ int       shmem_is_initialized;
 int       shmem_is_finalized;
 int       shmem_world_size, shmem_world_rank;
 char      shmem_procname[MPI_MAX_PROCESSOR_NAME];
-MCS_Mutex hdl; /* Mutex handle */
+//MCS_Mutex hdl; /* Mutex handle */
 
 #ifdef USE_SMP_OPTIMIZATIONS
 MPI_Comm  SHMEM_COMM_NODE;
@@ -103,6 +102,7 @@ void __shmem_remote_sync(void);
 
 void __shmem_local_sync(void);
 
+
 /* return 0 on successful lookup, otherwise 1 */
 int __shmem_window_offset(const void *address, const int pe,
                           enum shmem_window_id_e * win_id, shmem_offset_t * win_offset);     
@@ -132,4 +132,5 @@ void __shmem_coll(enum shmem_coll_type_e coll, MPI_Datatype mpi_type, MPI_Op red
                   void * target, const void * source, size_t len, 
                   int pe_root, int pe_start, int log_pe_stride, int pe_size);
 
+void* shmem_get_next(ptrdiff_t incr);
 #endif // SHMEM_INTERNALS_H

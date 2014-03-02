@@ -17,15 +17,24 @@
 #include "shmem.h"
 #include "shmem-internals.h"
 #include "shmem-wait.h"
-#include "mcs-lock.h"
+#include "lock.h"
 
-/* Mem-pool */
-void bmem_free (void * ptr);
-void * bmem_alloc (size_t size);
-void * bmem_realloc (void * ptr, size_t size);
-void * bmem_align (size_t alignment, size_t size);
-/* Mem-pool */
-
+/* Use JEMALLOC if present, otherwise DLMALLOC */
+#if USE_JEMALLOC
+#define _malloc_ je_malloc;
+#define _free_  je_free;
+#define _realloc_ je_realloc;
+#define _memalign_ je_memalign;
+#else
+void* dlmalloc(size_t);
+void  dlfree(void*);
+void* dlrealloc(void*, size_t);
+void* dlmemalign(size_t, size_t);
+#define _malloc_ dlmalloc;
+#define _free_  dlfree;
+#define _realloc_ dlrealloc;
+#define _memalign_ dlmemalign;
+#endif
 
 void start_pes(int npes) 
 { 
@@ -89,7 +98,7 @@ void *shmemalign(size_t alignment, size_t size)
 
     return address;
 #else
-    return bmem_align (alignment, size);
+    return _memalign_ (alignment, size);
 #endif
 }
 
@@ -101,7 +110,7 @@ void *shmalloc(size_t size)
     const int default_alignment = 4096;
     return shmemalign(default_alignment, size);
 #else    
-    return bmem_alloc (size);
+    return _malloc_ (size);
 #endif
 }
 
@@ -111,18 +120,18 @@ void *shrealloc(void *ptr, size_t size)
     __shmem_abort(size, "shrealloc is not implemented in the hack-tastic version of sheap");
     return NULL;
 #else    
-   return bmem_realloc (ptr, size);
+   return _realloc_ (ptr, size);
 #endif
 }
 
 void shfree(void *ptr)
 {
-    	
 #if SHEAP_HACK > 1	
     __shmem_warn("shfree is a no-op in the hack-tastic version of sheap");
     return;
 #else    
-    return bmem_free (ptr);
+    _free_ (ptr);
+    return;
 #endif
 }
 
@@ -884,20 +893,20 @@ void shmem_longlong_prod_to_all(long long *target, long long *source, int nreduc
 /* 8.19: Lock Routines */
 void shmem_set_lock(long *lock)
 {
-	MCS_Mutex_lock(hdl);
+	_lock(lock);
 	return;
 }
 
 void shmem_clear_lock(long *lock)
 {
-	MCS_Mutex_unlock(hdl);
+	_unlock(lock);
 	return;
 }
 
 int  shmem_test_lock(long *lock)
 {
 	int success;
-	MCS_Mutex_trylock(hdl, &success);
+	success = _trylock(lock);
 	return success;
 }
 

@@ -109,4 +109,15 @@ if test "$comm_caching_enabled" = "yes"; then
    AC_DEFINE(COMM_CACHING,1,[Defined when SHMEM communicator caching is enabled])
 fi
 
+## Use JEMALLOC 
+AC_MSG_CHECKING(whether JEMALLOC is used)
+AC_ARG_WITH(jemalloc,
+	    [ --with-jemalloc  use JEMALLOC memory allocator],
+	    with_jemalloc=$withval,
+	    with_jemalloc=no)
+AC_MSG_RESULT($with_jemalloc)
+if test "$with_jemalloc" = "yes"; then
+   AC_DEFINE(USE_JEMALLOC,1,[Defined when JEMALLOC is used])
+fi
+
 AC_OUTPUT(Makefile)

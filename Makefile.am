@@ -9,12 +9,12 @@ lib_LTLIBRARIES = libshmem.la
 
 libshmem_la_SOURCES = src/shmem-internals.c      \
                       src/shmem.c                \
-                      src/mcs-lock.c             \
-                      src/bmalloc.c
+                      src/malloc.c             \
+                      src/lock.c
 
 #libshmem_la_LDFLAGS = -version-info $(libshmem_abi_version)
 
-include_HEADERS = src/shmem.h src/shmem-internals.h
+include_HEADERS = src/shmem.h src/shmem-internals.h src/lock.h
 
 bin_PROGRAMS =
 check_PROGRAMS = 
