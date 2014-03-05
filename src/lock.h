@@ -1,7 +1,7 @@
 #ifndef LOCK_H
 #define LOCK_H
 
-#include <mpi.h>
+#include "shmem.h"
 
 #if ( defined(DEBUG) && (DEBUG > 1) )
 #define debug_print(...) do { printf(__VA_ARGS__); } while (0)

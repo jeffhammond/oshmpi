@@ -1,5 +1,4 @@
 /* BSD-2 License.  Written by Jeff Hammond. */
-
 #include "shmem-internals.h"
 #include "lock.h"
 

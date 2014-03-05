@@ -13,16 +13,16 @@
 #ifndef OSHMPI_SHMEM_H
 #define OSHMPI_SHMEM_H
 
-#include "shmemconf.h"
 
+#include <complex.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
-#include <complex.h>
 #include <assert.h>
 
+#include "shmemconf.h"
 /* These few lines and the ones they replaced are the only changes to this file. */
 /* -- begin changes -- */
 #include <mpi.h>
