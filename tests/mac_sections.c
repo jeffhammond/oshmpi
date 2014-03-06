@@ -4,8 +4,17 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+//FIXME make this portable
+#if defined(__APPLE__)
 #include <mach-o/getsect.h>
-
+#else
+    extern char data_start;
+    extern char etext;
+    extern char edata;
+    extern char end;
+    static unsigned long get_sdata() { return (unsigned long)&data_start;   }
+    static unsigned long get_end()   { return (unsigned long)&end;   }
+#endif
 int a;
 static int b;
 int c=1111;
@@ -18,10 +27,14 @@ int main(int argc, char *argv[])
     static int g;
     static int h=4444;
 
+#if defined(__APPLE__)
     printf("program text (etext)      %p\n", (void*)get_etext());
     printf("initialized data (edata)  %p\n", (void*)get_edata());
     printf("uninitialized data (end)  %p\n", (void*)get_end());
-
+#else
+    printf("initialized data (edata)  %p\n", (void*)get_sdata());
+    printf("uninitialized data (end)  %p\n", (void*)get_end());
+#endif
     printf("&a=%p\n", &a);
     printf("&b=%p\n", &b);
     printf("&c=%p\n", &c);

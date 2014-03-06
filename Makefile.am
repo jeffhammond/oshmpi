@@ -14,7 +14,7 @@ libshmem_la_SOURCES = src/shmem-internals.c      \
 
 #libshmem_la_LDFLAGS = -version-info $(libshmem_abi_version)
 
-include_HEADERS = src/shmem.h src/shmem-internals.h src/lock.h
+include_HEADERS = src/shmem.h src/shmem-internals.h src/lock.h src/shmemconf.h src/shmem-wait.h
 
 bin_PROGRAMS =
 check_PROGRAMS = 

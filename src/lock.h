@@ -11,7 +11,7 @@
 
 /* MPI Lock */
 MPI_Win lock_win;
-int *lock_base = NULL;
+extern int *lock_base;
 
 typedef struct lock_s
 {

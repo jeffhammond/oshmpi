@@ -8,16 +8,16 @@ OPTIONS  = -np
 NPROCS   = 2
 
 CC      = mpicc
-CFLAGS  = -g -O3 -std=c99 -I..
-LDFLAGS = $(CFLAGS) -L.. -lshmem -lm
+CFLAGS  = -g -O3 -std=c99 -I../src
+LDFLAGS = $(CFLAGS) -L../ -lshmem -lm
 
 all: $(BINARIES)
 
-%.x: %.o ../libshmem.a 
-	$(CC) $(CFLAGS)    $< $(LDFLAGS) -o $@
-
-%.o: %.c ../shmem.h Makefile
+%.o: %.c
 	$(CC) $(CFLAGS) -c $<            -o $@
+
+%.x: %.o
+	$(CC) $(CFLAGS)    $< $(LDFLAGS) -o $@
 
 clean:
 	-rm -f  $(OBJECTS)

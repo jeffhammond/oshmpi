@@ -6,6 +6,7 @@
 
 #include <shmem.h>
 
+/*
 double shmem_wtime(void)
 {
 	double wtime;
@@ -16,7 +17,7 @@ double shmem_wtime(void)
 
 	return wtime;
 }
-
+*/
 /* Aggregate b/w and latency for different communication patterns */
 #define DEFAULT_SIZE		(1<<20)
 #define DEFAULT_ITERS		10

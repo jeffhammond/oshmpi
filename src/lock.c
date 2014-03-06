@@ -6,6 +6,8 @@
 #include "shmem-internals.h"
 #include "lock.h"
 
+int *lock_base = NULL;
+
 void
 _allock (MPI_Comm comm)
 {
