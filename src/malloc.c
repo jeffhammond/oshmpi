@@ -2704,59 +2704,59 @@ static size_t traverse_and_check(mstate m);
 #define smallbin_at(M, i)   ((sbinptr)((char*)&((M)->smallbins[(i)<<1])))
 #define treebin_at(M,i)     (&((M)->treebins[i]))
 
-/* assign tree index for size S to variable II. Use x86 asm if possible  */
+/* assign tree index for size S to variable I. Use x86 asm if possible  */
 #if defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))
-#define compute_tree_index(S, II)\
+#define compute_tree_index(S, I)\
 {\
   unsigned int X = S >> TREEBIN_SHIFT;\
   if (X == 0)\
-    II = 0;\
+    I = 0;\
   else if (X > 0xFFFF)\
-    II = NTREEBINS-1;\
+    I = NTREEBINS-1;\
   else {\
     unsigned int K;\
     __asm__("bsrl\t%1, %0\n\t" : "=r" (K) : "g"  (X));\
-    II =  (bindex_t)((K << 1) + ((S >> (K + (TREEBIN_SHIFT-1)) & 1)));\
+    I =  (bindex_t)((K << 1) + ((S >> (K + (TREEBIN_SHIFT-1)) & 1)));\
   }\
 }
 
 #elif defined (__INTEL_COMPILER)
-#define compute_tree_index(S, II)\
+#define compute_tree_index(S, I)\
 {\
   size_t X = S >> TREEBIN_SHIFT;\
   if (X == 0)\
-    II = 0;\
+    I = 0;\
   else if (X > 0xFFFF)\
-    II = NTREEBINS-1;\
+    I = NTREEBINS-1;\
   else {\
     unsigned int K = _bit_scan_reverse (X); \
-    II =  (bindex_t)((K << 1) + ((S >> (K + (TREEBIN_SHIFT-1)) & 1)));\
+    I =  (bindex_t)((K << 1) + ((S >> (K + (TREEBIN_SHIFT-1)) & 1)));\
   }\
 }
 
 #elif defined(_MSC_VER) && _MSC_VER>=1300
-#define compute_tree_index(S, II)\
+#define compute_tree_index(S, I)\
 {\
   size_t X = S >> TREEBIN_SHIFT;\
   if (X == 0)\
-    II = 0;\
+    I = 0;\
   else if (X > 0xFFFF)\
-    II = NTREEBINS-1;\
+    I = NTREEBINS-1;\
   else {\
     unsigned int K;\
     _BitScanReverse((DWORD *) &K, X);\
-    II =  (bindex_t)((K << 1) + ((S >> (K + (TREEBIN_SHIFT-1)) & 1)));\
+    I =  (bindex_t)((K << 1) + ((S >> (K + (TREEBIN_SHIFT-1)) & 1)));\
   }\
 }
 
 #else /* GNUC */
-#define compute_tree_index(S, II)\
+#define compute_tree_index(S, I)\
 {\
   size_t X = S >> TREEBIN_SHIFT;\
   if (X == 0)\
-    II = 0;\
+    I = 0;\
   else if (X > 0xFFFF)\
-    II = NTREEBINS-1;\
+    I = NTREEBINS-1;\
   else {\
     unsigned int Y = (unsigned int)X;\
     unsigned int N = ((Y - 0x100) >> 16) & 8;\
@@ -2764,7 +2764,7 @@ static size_t traverse_and_check(mstate m);
     N += K;\
     N += K = (((Y <<= K) - 0x4000) >> 16) & 2;\
     K = 14 - N + ((Y <<= K) >> 15);\
-    II = (K << 1) + ((S >> (K + (TREEBIN_SHIFT-1)) & 1));\
+    I = (K << 1) + ((S >> (K + (TREEBIN_SHIFT-1)) & 1));\
   }\
 }
 #endif /* GNUC */
@@ -2810,34 +2810,34 @@ static size_t traverse_and_check(mstate m);
 /* index corresponding to given bit. Use x86 asm if possible */
 
 #if defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))
-#define compute_bit2idx(X, II)\
+#define compute_bit2idx(X, I)\
 {\
   unsigned int J;\
   __asm__("bsfl\t%1, %0\n\t" : "=r" (J) : "g" (X));\
-  II = (bindex_t)J;\
+  I = (bindex_t)J;\
 }
 
 #elif defined (__INTEL_COMPILER)
-#define compute_bit2idx(X, II)\
+#define compute_bit2idx(X, I)\
 {\
   unsigned int J;\
   J = _bit_scan_forward (X); \
-  II = (bindex_t)J;\
+  I = (bindex_t)J;\
 }
 
 #elif defined(_MSC_VER) && _MSC_VER>=1300
-#define compute_bit2idx(X, II)\
+#define compute_bit2idx(X, I)\
 {\
   unsigned int J;\
   _BitScanForward((DWORD *) &J, X);\
-  II = (bindex_t)J;\
+  I = (bindex_t)J;\
 }
 
 #elif USE_BUILTIN_FFS
-#define compute_bit2idx(X, II) II = ffs(X)-1
+#define compute_bit2idx(X, I) I = ffs(X)-1
 
 #else
-#define compute_bit2idx(X, II)\
+#define compute_bit2idx(X, I)\
 {\
   unsigned int Y = X - 1;\
   unsigned int K = Y >> (16-4) & 16;\
@@ -2846,7 +2846,7 @@ static size_t traverse_and_check(mstate m);
   N += K = Y >> (4-2) &  4;  Y >>= K;\
   N += K = Y >> (2-1) &  2;  Y >>= K;\
   N += K = Y >> (1-0) &  1;  Y >>= K;\
-  II = (bindex_t)(N + Y);\
+  I = (bindex_t)(N + Y);\
 }
 #endif /* GNUC */
 
@@ -3429,12 +3429,12 @@ static void internal_malloc_stats(mstate m) {
 
 /* Link a free chunk into a smallbin  */
 #define insert_small_chunk(M, P, S) {\
-  bindex_t II  = small_index(S);\
-  mchunkptr B = smallbin_at(M, II);\
+  bindex_t I  = small_index(S);\
+  mchunkptr B = smallbin_at(M, I);\
   mchunkptr F = B;\
   assert(S >= MIN_CHUNK_SIZE);\
-  if (!smallmap_is_marked(M, II))\
-    mark_smallmap(M, II);\
+  if (!smallmap_is_marked(M, I))\
+    mark_smallmap(M, I);\
   else if (RTCHECK(ok_address(M, B->fd)))\
     F = B->fd;\
   else {\
@@ -3450,14 +3450,14 @@ static void internal_malloc_stats(mstate m) {
 #define unlink_small_chunk(M, P, S) {\
   mchunkptr F = P->fd;\
   mchunkptr B = P->bk;\
-  bindex_t II = small_index(S);\
+  bindex_t I = small_index(S);\
   assert(P != B);\
   assert(P != F);\
-  assert(chunksize(P) == small_index2size(II));\
+  assert(chunksize(P) == small_index2size(I));\
   if (F == B)\
-    clear_smallmap(M, II);\
-  else if (RTCHECK((F == smallbin_at(M,II) || ok_address(M, F)) &&\
-                   (B == smallbin_at(M,II) || ok_address(M, B)))) {\
+    clear_smallmap(M, I);\
+  else if (RTCHECK((F == smallbin_at(M,I) || ok_address(M, F)) &&\
+                   (B == smallbin_at(M,I) || ok_address(M, B)))) {\
     F->bk = B;\
     B->fd = F;\
   }\
@@ -3467,13 +3467,13 @@ static void internal_malloc_stats(mstate m) {
 }
 
 /* Unlink the first chunk from a smallbin */
-#define unlink_first_small_chunk(M, B, P, II) {\
+#define unlink_first_small_chunk(M, B, P, I) {\
   mchunkptr F = P->fd;\
   assert(P != B);\
   assert(P != F);\
-  assert(chunksize(P) == small_index2size(II));\
+  assert(chunksize(P) == small_index2size(I));\
   if (B == F)\
-    clear_smallmap(M, II);\
+    clear_smallmap(M, I);\
   else if (RTCHECK(ok_address(M, F))) {\
     B->fd = F;\
     F->bk = B;\
@@ -3503,20 +3503,20 @@ static void internal_malloc_stats(mstate m) {
 /* Insert chunk into tree */
 #define insert_large_chunk(M, X, S) {\
   tbinptr* H;\
-  bindex_t II;\
-  compute_tree_index(S, II);\
-  H = treebin_at(M, II);\
-  X->index = II;\
+  bindex_t I;\
+  compute_tree_index(S, I);\
+  H = treebin_at(M, I);\
+  X->index = I;\
   X->child[0] = X->child[1] = 0;\
-  if (!treemap_is_marked(M, II)) {\
-    mark_treemap(M, II);\
+  if (!treemap_is_marked(M, I)) {\
+    mark_treemap(M, I);\
     *H = X;\
     X->parent = (tchunkptr)H;\
     X->fd = X->bk = X;\
   }\
   else {\
     tchunkptr T = *H;\
-    size_t K = S << leftshift_for_tree_index(II);\
+    size_t K = S << leftshift_for_tree_index(I);\
     for (;;) {\
       if (chunksize(T) != S) {\
         tchunkptr* C = &(T->child[(K >> (SIZE_T_BITSIZE-SIZE_T_ONE)) & 1]);\

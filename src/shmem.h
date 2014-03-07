@@ -35,7 +35,7 @@
 #    error You need MPI-3.  Try MPICH or one of its derivatives.
 #  endif
 #endif
-typedef MPI_Aint shmem_offset_t;
+//typedef MPI_Aint shmem_offset_t;
 /* -- end changes -- */
 
 #define SHMEM_CMP_EQ 1

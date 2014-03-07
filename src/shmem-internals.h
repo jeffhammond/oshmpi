@@ -3,8 +3,10 @@
 #ifndef SHMEM_INTERNALS_H
 #define SHMEM_INTERNALS_H
 
-#include "shmemconf.h"
-#include "shmem.h"
+#include <stdio.h>
+#include <stddef.h>
+
+#include <mpi.h>
 
 /* configuration settings */
 /* This is the only support mode right now. */
@@ -37,6 +39,7 @@
 /* requires TLS if MPI is thread-based */
 MPI_Comm  SHMEM_COMM_WORLD;
 MPI_Group SHMEM_GROUP_WORLD; /* used for creating logpe comms */
+typedef MPI_Aint shmem_offset_t;
 
 int       shmem_is_initialized;
 int       shmem_is_finalized;
