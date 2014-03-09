@@ -122,6 +122,8 @@ int __shmem_address_is_symmetric(size_t my_sheap_base_ptr)
 void __shmem_initialize(void)
 {
     int flag, provided;
+    shmem_sheap_base_ptr = NULL;
+
     MPI_Initialized(&flag);
     if (!flag) 
         MPI_Init_thread(NULL, NULL, MPI_THREAD_SINGLE, &provided);
@@ -327,9 +329,15 @@ void __shmem_finalize(void)
 
 void* shmem_get_next(ptrdiff_t incr)
 {
+    enum shmem_window_id_e win_id;
+    shmem_offset_t win_offset;
     char *orig = shmem_sheap_current_ptr;
 
     shmem_sheap_current_ptr += incr;
+   	
+    if (__shmem_window_offset(shmem_sheap_current_ptr, shmem_world_rank, &win_id, &win_offset)) {
+	__shmem_abort(win_id, "Invalid pointer or symmetric heap overflow");
+    }
     if ((char*)shmem_sheap_current_ptr < (char*) shmem_sheap_base_ptr) {
 #if SHMEM_DEBUG > 1
     __shmem_warn("symmetric heap pointer pushed below start");
@@ -338,11 +346,13 @@ void* shmem_get_next(ptrdiff_t incr)
     } else if ((char *)shmem_sheap_current_ptr - (char*) shmem_sheap_base_ptr >
 	    shmem_sheap_size) {
 #if SHMEM_DEBUG > 1
-    __shmem_warn("symmetric heap overrun");
+    __shmem_warn("symmetric heap overrun, data integrity doubtful");
 #endif
-	shmem_sheap_current_ptr = orig;
-	orig = (void*) -1;
+	orig = shmem_sheap_base_ptr;
     }
+#if SHEAP_BARRIERS
+	shmem_barrier_all();
+#endif
     return orig;
 }
 

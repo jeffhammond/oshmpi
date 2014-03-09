@@ -73,7 +73,7 @@ int shmem_addr_accessible(void *addr, int pe)
 }
 
 /* 8.4: Symmetric Heap Routines */
-
+//FIXME wrap malloc/memalign calls with mutex for multi-thread protection [?]
 void *shmemalign(size_t alignment, size_t size)
 {
 #if SHEAP_HACK > 1	

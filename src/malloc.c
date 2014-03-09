@@ -4326,6 +4326,7 @@ static int sys_trim(mstate m, size_t pad) {
           if (HAVE_MMAP &&
               sp->size >= extra &&
               !has_segment_link(m, sp)) { /* can't shrink if pinned */
+#if HAVE_MREMAP || HAVE_MMAP
             size_t newsize = sp->size - extra;
             (void)newsize; /* placate people compiling -Wunused-variable */
             /* Prefer mremap, fall back to munmap */
@@ -4333,6 +4334,7 @@ static int sys_trim(mstate m, size_t pad) {
                 (CALL_MUNMAP(sp->base + newsize, extra) == 0)) {
               released = extra;
             }
+#endif
           }
         }
         else if (HAVE_MORECORE) {
