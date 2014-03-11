@@ -338,20 +338,8 @@ void* shmem_get_next(ptrdiff_t incr)
     if (__shmem_window_offset(shmem_sheap_current_ptr, shmem_world_rank, &win_id, &win_offset)) {
 	__shmem_abort(win_id, "Invalid pointer or symmetric heap overflow");
     }
-    if ((char*)shmem_sheap_current_ptr < (char*) shmem_sheap_base_ptr) {
-#if SHMEM_DEBUG > 1
-    __shmem_warn("symmetric heap pointer pushed below start");
-#endif
-	shmem_sheap_current_ptr = (char*) shmem_sheap_base_ptr;
-    } else if ((char *)shmem_sheap_current_ptr - (char*) shmem_sheap_base_ptr >
-	    shmem_sheap_size) {
-#if SHMEM_DEBUG > 1
-    __shmem_warn("symmetric heap overrun, data integrity doubtful");
-#endif
-	orig = shmem_sheap_base_ptr;
-    }
 #if SHEAP_BARRIERS
-	shmem_barrier_all();
+    shmem_barrier_all();
 #endif
     return orig;
 }
