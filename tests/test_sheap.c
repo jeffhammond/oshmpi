@@ -12,16 +12,16 @@ int main(void)
 
     int * in  = shmalloc(SIZE*sizeof(int));
     int * out = shmalloc(SIZE*sizeof(int));
-    printf("[%d] after memory allocation \n", mype);
 
     int source = 0;
     int target = (mype+1)%npes;
-
+    
     for (int i=0; i<SIZE; i++)
         in[i] = 1+mype;
-
+    
     for (int i=0; i<SIZE; i++)
         out[i] = -(1+mype);
+
 
     shmem_barrier_all();
 

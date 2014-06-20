@@ -1,4 +1,6 @@
 /* BSD-2 License.  Written by Jeff Hammond. */
+#include <sys/mman.h>
+
 #include "shmem-internals.h"
 #include "lock.h"
 
@@ -202,13 +204,12 @@ void __shmem_initialize(void)
 #endif
         {
             MPI_Info_set(sheap_info, "alloc_shm", "true");
-            MPI_Win_allocate((MPI_Aint)shmem_sheap_size, 1 /* disp_unit */, sheap_info, SHMEM_COMM_WORLD, 
+	    MPI_Win_allocate((MPI_Aint)shmem_sheap_size, 1 /* disp_unit */, sheap_info, SHMEM_COMM_WORLD, 
                              &shmem_sheap_base_ptr, &shmem_sheap_win);
-        }
+	}
         MPI_Win_lock_all(0, shmem_sheap_win);
         /* this is the hack-tastic sheap initialization */
         shmem_sheap_current_ptr = shmem_sheap_base_ptr;
-
 #if SHMEM_DEBUG > 1
         printf("[%d] shmem_sheap_current_ptr  = %p  \n", shmem_world_rank, shmem_sheap_current_ptr );
         fflush(stdout);
@@ -319,6 +320,7 @@ void __shmem_finalize(void)
 
             MPI_Group_free(&SHMEM_GROUP_WORLD);
             MPI_Comm_free(&SHMEM_COMM_WORLD);
+		
 
             shmem_is_finalized = 1;
         }
@@ -326,13 +328,15 @@ void __shmem_finalize(void)
     }
     return;
 }
-
-void* shmem_get_next(ptrdiff_t incr)
+/* Notes Sayan: dlmalloc MORECORE is redefined to this function, it 
+ * must also allocate 
+ */
+void* shmem_get_next(size_t incr)
 {
     enum shmem_window_id_e win_id;
     shmem_offset_t win_offset;
-    char *orig = shmem_sheap_current_ptr;
 
+    void *orig = (void *)(shmem_sheap_current_ptr);
     shmem_sheap_current_ptr += incr;
    	
     if (__shmem_window_offset(shmem_sheap_current_ptr, shmem_world_rank, &win_id, &win_offset)) {

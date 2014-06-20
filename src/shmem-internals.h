@@ -135,5 +135,6 @@ void __shmem_coll(enum shmem_coll_type_e coll, MPI_Datatype mpi_type, MPI_Op red
                   void * target, const void * source, size_t len, 
                   int pe_root, int pe_start, int log_pe_stride, int pe_size);
 
+/* SHEAP management */
 void* shmem_get_next(ptrdiff_t incr);
 #endif // SHMEM_INTERNALS_H

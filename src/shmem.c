@@ -95,10 +95,14 @@ void *shmemalign(size_t alignment, size_t size)
     printf("[%d] shmemalign/shmalloc is going to return address = %p  \n", shmem_world_rank, address );
     fflush(stdout);
 #endif
-
     return address;
 #else
-    return _memalign_ (alignment, size);
+    void *address = _memalign_ (alignment, size);
+#if SHMEM_DEBUG > 1
+    if (address == NULL)
+	__shmem_warn("address to a chunk points to NULL");
+#endif
+    return address;
 #endif
 }
 
@@ -110,7 +114,12 @@ void *shmalloc(size_t size)
     const int default_alignment = 4096;
     return shmemalign(default_alignment, size);
 #else    
-    return _malloc_ (size);
+    void *address = _malloc_ (size);
+#if SHMEM_DEBUG > 1
+    if (address == NULL)
+	__shmem_warn("address to a chunk points to NULL");
+#endif
+    return address;
 #endif
 }
 
@@ -119,8 +128,13 @@ void *shrealloc(void *ptr, size_t size)
 #if SHEAP_HACK > 1	
     __shmem_abort(size, "shrealloc is not implemented in the hack-tastic version of sheap");
     return NULL;
-#else    
-   return _realloc_ (ptr, size);
+#else   
+    void *address = _realloc_ (ptr, size);
+#if SHMEM_DEBUG > 1
+    if (address == NULL)
+	__shmem_warn("address to a chunk points to NULL");
+#endif
+    return address;
 #endif
 }
 

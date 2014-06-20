@@ -7,14 +7,15 @@ AM_CPPFLAGS = -I$(top_srcdir)/src
 
 lib_LTLIBRARIES = libshmem.la
 
-libshmem_la_SOURCES = src/shmem-internals.c      \
-                      src/shmem.c                \
+libshmem_la_SOURCES = src/shmem-internals.c    \
+                      src/shmem.c              \
                       src/malloc.c             \
-                      src/lock.c
+                      src/lock.c               \
+		      src/gmr.c
 
 #libshmem_la_LDFLAGS = -version-info $(libshmem_abi_version)
 
-include_HEADERS = src/shmem.h src/shmem-internals.h src/lock.h src/shmemconf.h src/shmem-wait.h
+include_HEADERS = src/shmem.h src/shmem-internals.h src/lock.h src/shmemconf.h src/shmem-wait.h src/gmr.h
 
 bin_PROGRAMS =
 check_PROGRAMS = 
