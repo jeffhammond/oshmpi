@@ -9,6 +9,7 @@ lib_LTLIBRARIES = libshmem.la
 
 libshmem_la_SOURCES = src/shmem-internals.c      \
                       src/shmem.c                \
+                      src/pshmem.c               \
                       src/lock.c                 \
                       src/bmalloc.c
 
