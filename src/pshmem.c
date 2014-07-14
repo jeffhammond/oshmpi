@@ -13,7 +13,7 @@
 #include <shmem.h>
 
 /* 8.1: Initialization Routines */
-void start_pes(int npes){ return pstart_pes(npes); }
+void start_pes(int npes){ pstart_pes(npes); }
 
 /* 8.2: Query Routines */
 int _num_pes(void){ return p_num_pes(); }
@@ -29,58 +29,36 @@ int shmem_addr_accessible(void *addr, int pe){ return pshmem_addr_accessible(add
 void *shmalloc(size_t size){ return pshmalloc(size); }
 void *shmemalign(size_t alignment, size_t size){ return pshmemalign(alignment, size); }
 void *shrealloc(void *ptr, size_t size){ return pshrealloc(ptr, size); }
-void shfree(void *ptr){ return pshfree(ptr); }
+void shfree(void *ptr){ pshfree(ptr); }
 
 /* 8.5: Remote Pointer Operations */
 void *shmem_ptr(void *target, int pe){ return pshmem_ptr(target, pe); }
 
 /* 8.6: Elemental Put Routines */
-void shmem_float_p(float *addr, float value, int pe);
-void pshmem_float_p(float *addr, float value, int pe);
-void shmem_double_p(double *addr, double value, int pe);
-void pshmem_double_p(double *addr, double value, int pe);
-void shmem_longdouble_p(long double *addr, long double value, int pe);
-void pshmem_longdouble_p(long double *addr, long double value, int pe);
-void shmem_char_p(char *addr, char value, int pe);
-void pshmem_char_p(char *addr, char value, int pe);
-void shmem_short_p(short *addr, short value, int pe);
-void pshmem_short_p(short *addr, short value, int pe);
-void shmem_int_p(int *addr, int value, int pe);
-void pshmem_int_p(int *addr, int value, int pe);
-void shmem_long_p(long *addr, long value, int pe);
-void pshmem_long_p(long *addr, long value, int pe);
-void shmem_longlong_p(long long *addr, long long value, int pe);
-void pshmem_longlong_p(long long *addr, long long value, int pe);
+void shmem_float_p(float *addr, float value, int pe){ pshmem_float_p(addr, value, pe); }
+void shmem_double_p(double *addr, double value, int pe){ pshmem_double_p(addr, value, pe); }
+void shmem_longdouble_p(long double *addr, long double value, int pe){ pshmem_longdouble_p(addr, value, pe); }
+void shmem_char_p(char *addr, char value, int pe){ pshmem_char_p(addr, value, pe); }
+void shmem_short_p(short *addr, short value, int pe){ pshmem_short_p(addr, value, pe); }
+void shmem_int_p(int *addr, int value, int pe){ pshmem_int_p(addr, value, pe); }
+void shmem_long_p(long *addr, long value, int pe){ pshmem_long_p(addr, value, pe); }
+void shmem_longlong_p(long long *addr, long long value, int pe){ pshmem_longlong_p(addr, value, pe); }
 
 /* 8.7: Block Data Put Routines */
-void shmem_float_put(float *target, const float *source, size_t len, int pe);
-void pshmem_float_put(float *target, const float *source, size_t len, int pe);
-void shmem_double_put(double *target, const double *source, size_t len, int pe);
-void pshmem_double_put(double *target, const double *source, size_t len, int pe);
-void shmem_longdouble_put(long double *target, const long double *source, size_t len, int pe);
-void pshmem_longdouble_put(long double *target, const long double *source, size_t len, int pe);
-void shmem_char_put(char *target, const char *source, size_t nelems, int pe);
-void pshmem_char_put(char *target, const char *source, size_t nelems, int pe);
-void shmem_short_put(short *target, const short *source, size_t len, int pe);
-void pshmem_short_put(short *target, const short *source, size_t len, int pe);
-void shmem_int_put(int *target, const int *source, size_t len, int pe);
-void pshmem_int_put(int *target, const int *source, size_t len, int pe);
-void shmem_long_put(long *target, const long *source, size_t len, int pe);
-void pshmem_long_put(long *target, const long *source, size_t len, int pe);
-void shmem_longlong_put(long long *target, const long long *source, size_t len, int pe);
-void pshmem_longlong_put(long long *target, const long long *source, size_t len, int pe);
-void shmem_put32(void *target, const void *source, size_t len, int pe);
-void pshmem_put32(void *target, const void *source, size_t len, int pe);
-void shmem_put64(void *target, const void *source, size_t len, int pe);
-void pshmem_put64(void *target, const void *source, size_t len, int pe);
-void shmem_put128(void *target, const void *source, size_t len, int pe);
-void pshmem_put128(void *target, const void *source, size_t len, int pe);
-void shmem_putmem(void *target, const void *source, size_t len, int pe);
-void pshmem_putmem(void *target, const void *source, size_t len, int pe);
-void shmem_complexf_put(float complex * target, const float complex * source, size_t nelems, int pe);
-void pshmem_complexf_put(float complex * target, const float complex * source, size_t nelems, int pe);
-void shmem_complexd_put(double complex * target, const double complex * source, size_t nelems, int pe);
-void pshmem_complexd_put(double complex * target, const double complex * source, size_t nelems, int pe);
+void shmem_float_put(float *target, const float *source, size_t len, int pe){ pshmem_float_put(target, source, len, pe); }
+void shmem_double_put(double *target, const double *source, size_t len, int pe){ pshmem_double_put(target, source, len, pe); }
+void shmem_longdouble_put(long double *target, const long double *source, size_t len, int pe){ pshmem_longdouble_put(target, source, len, pe); }
+void shmem_char_put(char *target, const char *source, size_t nelems, int pe){ pshmem_char_put(target, source, nelems, pe); }
+void shmem_short_put(short *target, const short *source, size_t len, int pe){ pshmem_short_put(target, source, len, pe); }
+void shmem_int_put(int *target, const int *source, size_t len, int pe){ pshmem_int_put(target, source, len, pe); }
+void shmem_long_put(long *target, const long *source, size_t len, int pe){ pshmem_long_put(target, source, len, pe); }
+void shmem_longlong_put(long long *target, const long long *source, size_t len, int pe){ pshmem_longlong_put(target, source, len, pe); }
+void shmem_put32(void *target, const void *source, size_t len, int pe){ pshmem_put32(target, source, len, pe); }
+void shmem_put64(void *target, const void *source, size_t len, int pe){ pshmem_put64(target, source, len, pe); }
+void shmem_put128(void *target, const void *source, size_t len, int pe){ pshmem_put128(target, source, len, pe); }
+void shmem_putmem(void *target, const void *source, size_t len, int pe){ pshmem_putmem(target, source, len, pe); }
+void shmem_complexf_put(float complex * target, const float complex * source, size_t nelems, int pe){ pshmem_complexf_put(target, source, nelems, pe); }
+void shmem_complexd_put(double complex * target, const double complex * source, size_t nelems, int pe){ pshmem_complexd_put(target, source, nelems, pe); }
 
 /* 8.8: Strided Put Routines */
 void shmem_float_iput(float *target, const float *source, ptrdiff_t tst, ptrdiff_t sst, size_t len, int pe);
