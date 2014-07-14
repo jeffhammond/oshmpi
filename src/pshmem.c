@@ -10,80 +10,29 @@
  *
  */
 
-#ifndef OSHMPI_SHMEM_H
-#define OSHMPI_SHMEM_H
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <string.h>
-#include <complex.h>
-#include <assert.h>
-
-/* These few lines and the ones they replaced are the only changes to this file. */
-/* -- begin changes -- */
-#include <mpi.h>
-#if (MPI_VERSION < 2)
-#  error It appears that you have been living under a rock.
-#elif (MPI_VERSION < 3) 
-#  if defined(MPICH2)
-#    error Get the latest MPICH, MVAPICH2 or CrayMPI for MPI-3 support.
-#  else
-#    error You need MPI-3.  Try MPICH or one of its derivatives.
-#  endif
-#endif
-typedef MPI_Aint shmem_offset_t;
-/* -- end changes -- */
-
-#define SHMEM_CMP_EQ 1
-#define SHMEM_CMP_NE 2
-#define SHMEM_CMP_GT 3
-#define SHMEM_CMP_GE 4
-#define SHMEM_CMP_LT 5
-#define SHMEM_CMP_LE 6
-
-#define _SHMEM_BCAST_SYNC_SIZE 1
-#define _SHMEM_REDUCE_SYNC_SIZE 1
-#define _SHMEM_BARRIER_SYNC_SIZE 1
-#define _SHMEM_COLLECT_SYNC_SIZE 2
-#define _SHMEM_REDUCE_MIN_WRKDATA_SIZE 1
-#define SHMEM_BCAST_SYNC_SIZE _SHMEM_BCAST_SYNC_SIZE
-#define _SHMEM_SYNC_VALUE 0
+#include <shmem.h>
 
 /* 8.1: Initialization Routines */
-void start_pes(int npes);
-void pstart_pes(int npes);
+void start_pes(int npes){ return pstart_pes(npes); }
 
 /* 8.2: Query Routines */
-int _num_pes(void);
-int p_num_pes(void);
-int shmem_n_pes(void);
-int pshmem_n_pes(void);
-int _my_pe(void);
-int p_my_pe(void);
-int shmem_my_pe(void);
-int pshmem_my_pe(void);
+int _num_pes(void){ return p_num_pes(); }
+int shmem_n_pes(void){ pshmem_n_pes(); }
+int _my_pe(void){ return p_my_pe(); }
+int shmem_my_pe(void){ return pshmem_my_pe(); }
 
 /* 8.3: Accessibility Query Routines */
-int shmem_pe_accessible(int pe);
-int pshmem_pe_accessible(int pe);
-int shmem_addr_accessible(void *addr, int pe);
-int pshmem_addr_accessible(void *addr, int pe);
+int shmem_pe_accessible(int pe){ return pshmem_pe_accessible(pe); }
+int shmem_addr_accessible(void *addr, int pe){ return pshmem_addr_accessible(addr, pe); }
 
 /* 8.4: Symmetric Heap Routines */
-void *shmalloc(size_t size);
-void *pshmalloc(size_t size);
-void *shmemalign(size_t alignment, size_t size);
-void *pshmemalign(size_t alignment, size_t size);
-void *shrealloc(void *ptr, size_t size);
-void *pshrealloc(void *ptr, size_t size);
-void shfree(void *ptr);
-void pshfree(void *ptr);
+void *shmalloc(size_t size){ return pshmalloc(size); }
+void *shmemalign(size_t alignment, size_t size){ return pshmemalign(alignment, size); }
+void *shrealloc(void *ptr, size_t size){ return pshrealloc(ptr, size); }
+void shfree(void *ptr){ return pshfree(ptr); }
 
 /* 8.5: Remote Pointer Operations */
-void *shmem_ptr(void *target, int pe);
-void *pshmem_ptr(void *target, int pe);
+void *shmem_ptr(void *target, int pe){ return pshmem_ptr(target, pe); }
 
 /* 8.6: Elemental Put Routines */
 void shmem_float_p(float *addr, float value, int pe);
@@ -659,22 +608,3 @@ char* shmem_nodename(void);
 double pshmem_wtime(void);
 char* pshmem_nodename(void);
 
-#if 0 // NOT IMPLEMENTED IN MPI-3 VERSION
-/* Signalling puts */
-typedef char * shmem_ct_t;
-
-void shmem_putmem_ct(pshmem_ct_t ct, void *target, const void *source, size_t len, int pe);
-void shmem_ct_create(pshmem_ct_t *ct);
-void shmem_ct_free(pshmem_ct_t *ct);
-long shmem_ct_get(pshmem_ct_t ct);
-void shmem_ct_set(pshmem_ct_t ct, long value);
-void shmem_ct_wait(pshmem_ct_t ct, long wait_for);
-void pshmem_putmem_ct(pshmem_ct_t ct, void *target, const void *source, size_t len, int pe);
-void pshmem_ct_create(pshmem_ct_t *ct);
-void pshmem_ct_free(pshmem_ct_t *ct);
-long pshmem_ct_get(pshmem_ct_t ct);
-void pshmem_ct_set(pshmem_ct_t ct, long value);
-void pshmem_ct_wait(pshmem_ct_t ct, long wait_for);
-#endif
-
-#endif /* OSHMPI_SHMEM_H */
