@@ -1,3 +1,6 @@
+#define SHMEM_DEBUG 9
+#define ABUSE_MPICH_FOR_GLOBALS 1
+
 /* BSD-2 License.  Written by Jeff Hammond. */
 
 #include "shmem-internals.h"
@@ -286,9 +289,8 @@ void oshmpi_initialize(int threading)
         printf("[%d] get_etext()       = %p \n", shmem_world_rank, (void*)get_etext() );
         printf("[%d] get_edata()       = %p \n", shmem_world_rank, (void*)get_edata() );
         printf("[%d] get_end()         = %p \n", shmem_world_rank, (void*)get_end()   );
-        //printf("[%d] long_etext_size   = %lu \n", shmem_world_rank, long_etext_size );
+        printf("[%d] long_etext_size   = %lu \n", shmem_world_rank, long_etext_size );
         printf("[%d] shmem_etext_size  = %d  \n", shmem_world_rank, shmem_etext_size );
-        //printf("[%d] my_etext_base_ptr = %p  \n", shmem_world_rank, my_etext_base_ptr );
         fflush(stdout);
 #endif
 
@@ -442,6 +444,18 @@ int oshmpi_window_offset(const void *address, const int pe, /* IN  */
 #endif
         return 0;
     }
+#ifdef ABUSE_MPICH_FOR_GLOBALS
+    else {
+        fprintf(stderr,"ABUSE_MPICH_FOR_GLOBALS is dangerous!\n");
+        *win_offset = (intptr_t)address;
+        *win_id     = SHMEM_ETEXT_WINDOW;
+#if SHMEM_DEBUG>5
+        printf("[%d] found address in etext window \n", shmem_world_rank);
+        printf("[%d] win_offset=%ld \n", shmem_world_rank, *win_offset);
+#endif
+        return 0;
+    }
+#else
     else if (0 <= etext_offset && etext_offset <= shmem_etext_size) {
         *win_offset = etext_offset;
         *win_id     = SHMEM_ETEXT_WINDOW;
@@ -459,6 +473,7 @@ int oshmpi_window_offset(const void *address, const int pe, /* IN  */
 #endif
         return 1;
     }
+#endif
 }
 
 void oshmpi_put(MPI_Datatype mpi_type, void *target, const void *source, size_t len, int pe)
