@@ -1,5 +1,5 @@
 #define SHMEM_DEBUG 9
-#define ABUSE_MPICH_FOR_GLOBALS 1
+//#define ABUSE_MPICH_FOR_GLOBALS 1
 
 /* BSD-2 License.  Written by Jeff Hammond. */
 
@@ -289,7 +289,6 @@ void oshmpi_initialize(int threading)
         printf("[%d] get_etext()       = %p \n", shmem_world_rank, (void*)get_etext() );
         printf("[%d] get_edata()       = %p \n", shmem_world_rank, (void*)get_edata() );
         printf("[%d] get_end()         = %p \n", shmem_world_rank, (void*)get_end()   );
-        printf("[%d] long_etext_size   = %lu \n", shmem_world_rank, long_etext_size );
         printf("[%d] shmem_etext_size  = %d  \n", shmem_world_rank, shmem_etext_size );
         fflush(stdout);
 #endif
