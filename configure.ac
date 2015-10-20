@@ -33,11 +33,11 @@ LT_INIT(disable-shared)
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 # Checks for libraries.
-AC_CHECK_LIB([m], [fabs])
+#AC_CHECK_LIB([m], [fabs])
 AC_CHECK_LIB([mpi], [MPI_Win_allocate_shared])
 
 # Checks for header files.
-AC_CHECK_HEADERS([fcntl.h limits.h stddef.h stdio.h stdint.h stdlib.h string.h strings.h sys/param.h sys/time.h unistd.h complex.h assert.h mpi.h])
+AC_CHECK_HEADERS([limits.h stddef.h stdio.h stdint.h stdlib.h string.h strings.h unistd.h complex.h assert.h mpi.h])
 
 # Check for Intel hbwmalloc - should define HAVE_HBWMALLOC_H
 AC_CHECK_HEADERS([hbwmalloc.h])
@@ -85,7 +85,7 @@ AC_CHECK_TYPES([intptr_t])
 
 # Checks for library functions.
 #AC_FUNC_MALLOC
-AC_CHECK_FUNCS([atexit floor gethostname getpagesize gettimeofday memset memcpy memmove posix_memalign pow sqrt strerror strrchr strtol])
+AC_CHECK_FUNCS([atexit gethostname gettimeofday memset memcpy memmove posix_memalign strerror strrchr strtol getenv])
 
 ## Debugging support
 AC_ARG_ENABLE(g, AC_HELP_STRING([--enable-g],[Enable Debugging]),
@@ -192,6 +192,7 @@ AC_ARG_ENABLE([extensions],
         cray_threads       - Cray thread-safety extension.
         armci_strided      - ARMCI block-strided extension.
         init_subcomm       - MPI subcommunicator ensemble extension.
+        hbw_allocator      - Intel HBW allocator extension.
 ],[],[enable_extensions=none])
 # strip off multiple options, separated by commas
 save_IFS="$IFS"
@@ -208,6 +209,7 @@ for var in $enable_extensions ; do
             [cray_threads],[enable_extension_cray_threads=yes],
             [armci_strided],[enable_extension_armci_strided=yes],
             [init_subcomm],[enable_extension_init_subcomm=yes],
+            [hbw_allocator],[enable_extension_hbw_allocator=yes],
             [no|none],[],
             [IFS=$save_IFS
              AC_MSG_WARN([Unknown value ($option) for enable-extensions])
@@ -243,6 +245,9 @@ if test -n "$enable_extension_armci_strided" ; then
 fi
 if test -n "$enable_extension_init_subcomm" ; then
     AC_DEFINE(EXTENSION_INIT_SUBCOMM,1,[Define to enable MPI subcommunicator ensemble extension.])
+fi
+if test -n "$enable_extension_hbw_allocator" ; then
+    AC_DEFINE(EXTENSION_HBW_ALLOCATOR,1,[Define to enable Intel HBW allocator extension.])
 fi
 # For easy copy-and-paste definition of new extensions.
 #if test -n "$enable_extension_" ; then
