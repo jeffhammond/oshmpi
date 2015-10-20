@@ -12,18 +12,20 @@ libshmem_la_SOURCES = src/shmem-internals.c      \
                       src/oshmpi-mcs-lock.c      \
                       src/dlmalloc.c             \
                       src/shmemx-counting-put.c  \
-                      src/shmemx-armci-strided.c
+                      src/shmemx-armci-strided.c \
+                      src/shmemx-hbw-allocator.c
 
 #libshmem_la_LDFLAGS = -version-info $(libshmem_abi_version)
 
-include_HEADERS = src/shmem.h \
-		  src/shmemx.h \
-		  src/shmem-internals.h \
-		  src/shmem-wait.h \
-		  src/dlmalloc.h \
-		  src/compiler-utils.h \
-		  src/type_contiguous_x.h \
-		  src/oshmpi-mcs-lock.h
+include_HEADERS = src/shmemconf.h               \
+                  src/shmem.h                   \
+                  src/shmemx.h                  \
+                  src/shmem-internals.h         \
+                  src/shmem-wait.h              \
+                  src/dlmalloc.h                \
+                  src/compiler-utils.h          \
+                  src/type_contiguous_x.h       \
+                  src/oshmpi-mcs-lock.h
 
 bin_PROGRAMS =
 check_PROGRAMS = 
