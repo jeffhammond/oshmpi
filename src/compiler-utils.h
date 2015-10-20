@@ -9,4 +9,11 @@
 #  define likely(x_)   (x_)
 #endif
 
+/* Intel and GCC pre-4.5 do not support deprecated messages... */
+#if ( defined(__GNUC__) && (__GNUC__ >= 3) ) || defined(__IBMC__) || defined(__INTEL_COMPILER) || defined(__clang__)
+#  define OSHMPI_DEPRECATED __attribute__((deprecated))
+#else
+#  define OSHMPI_DEPRECATED
+#endif
+
 #endif // COMPILER_UTILS_H
