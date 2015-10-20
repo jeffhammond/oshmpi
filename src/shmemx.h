@@ -3,12 +3,19 @@
 #ifndef OSHMPI_SHMEMX_H
 #define OSHMPI_SHMEMX_H
 
-#include "shmemconf.h"
-#include "shmem.h"
+#include "shmem-internals.h"
 
  /* Portals extensions */
 double shmem_wtime(void);
 char* shmem_nodename(void);
+
+#ifdef EXTENSION_HBW_ALLOCATOR
+/* 8.4: Symmetric Heap Routines */
+void * shmem_hbw_malloc(size_t size);
+void * shmem_hbw_align(size_t alignment, size_t size);
+void * shmem_hbw_realloc(void *ptr, size_t size);
+void   shmem_hbw_free(void *ptr);
+#endif
 
 #if EXTENSION_FINAL_ABORT
 #error TODO

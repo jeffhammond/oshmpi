@@ -68,7 +68,7 @@ extern void *  shmem_sheap_base_ptr;
 /* dlmalloc mspace... */
 extern mspace shmem_heap_mspace;
 
-#ifdef OSHMPI_HAVE_FASTMEM
+#ifdef EXTENSION_HBW_ALLOCATOR
 extern MPI_Win shmem_sheapfast_win;
 extern long    shmem_sheapfast_size;
 extern void *  shmem_sheapfast_base_ptr;
@@ -361,7 +361,7 @@ void oshmpi_initialize(int threading)
         shmem_heap_mspace = create_mspace_with_base(shmem_sheap_base_ptr, shmem_sheap_size, 0 /* locked */);
         if (shmem_heap_mspace==NULL) oshmpi_abort(shmem_world_rank,"create_mspace_with_base failed");
 
-#ifdef OSHMPI_HAVE_FASTMEM
+#ifdef EXTENSION_HBW_ALLOCATOR
         {
             if (hbw_check_available()) {
                 char * env_char = getenv("OSHMPI_KNL_FAST_HEAP_SIZE");
@@ -499,7 +499,7 @@ void oshmpi_finalize(void)
             MPI_Win_unlock_all(shmem_sheap_win);
             MPI_Win_free(&shmem_sheap_win);
 
-#ifdef OSHMPI_HAVE_FASTMEM
+#ifdef EXTENSION_HBW_ALLOCATOR
             if (shmem_sheapfast_size>0) {
 
                 MPI_Win_unlock_all(shmem_sheapfast_win);

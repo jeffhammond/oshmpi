@@ -1,9 +1,9 @@
 /* BSD-2 License.  Written by Jeff Hammond. */
 
-#ifdef EXTENSION_COUNTING_PUT
-
 #include "shmemx.h"
 #include "shmem-internals.h"
+
+#ifdef EXTENSION_COUNTING_PUT
 
 void shmemx_ct_create(shmemx_ct_t *ct)
 {
