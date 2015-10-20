@@ -39,6 +39,12 @@ AC_CHECK_LIB([mpi], [MPI_Win_allocate_shared])
 # Checks for header files.
 AC_CHECK_HEADERS([fcntl.h limits.h stddef.h stdio.h stdint.h stdlib.h string.h strings.h sys/param.h sys/time.h unistd.h complex.h assert.h mpi.h])
 
+# Check for Intel hbwmalloc - should define HAVE_HBWMALLOC_H
+AC_CHECK_HEADERS([hbwmalloc.h])
+if test "x$ac_cv_header_hbwmalloc_h" = "xyes"; then
+    AC_CHECK_LIB([memkind], [hbw_malloc])
+fi
+
 # Operating system check
 AS_CASE([$host],
    [*-*-darwin*],
