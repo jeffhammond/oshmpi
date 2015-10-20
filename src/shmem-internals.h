@@ -24,6 +24,25 @@
 #define ONLY_MSPACES 1
 #include "dlmalloc.h"
 
+#ifdef HAVE_HBWMALLOC_H
+#include <hbwmalloc.h>
+#define OSHMPI_HAVE_FASTMEM
+#else
+/* These definitions are here for debugging only.
+ * They must be removed before merging to master. */
+int hbw_check_available(void) { return 0; }
+void* hbw_malloc(size_t size) { return NULL; };
+void* hbw_calloc(size_t nmemb, size_t size) { return NULL; };
+void* hbw_realloc (void *ptr, size_t size) { return NULL; };
+void hbw_free(void *ptr) { return; };
+int hbw_posix_memalign(void **memptr, size_t alignment, size_t size) { return NULL; };
+int hbw_posix_memalign_psize(void **memptr, size_t alignment, size_t size, int pagesize) { return NULL; };
+int hbw_get_policy(void) { return 0; };
+int hbw_set_policy(int mode) { return -1; };
+/* This is a lie (only for debugging) */
+#define OSHMPI_HAVE_FASTMEM
+#endif
+
 typedef MPI_Aint shmem_offset_t;
 
 /*****************************************************************/
@@ -54,9 +73,16 @@ void *  shmem_etext_base_ptr;
 MPI_Win shmem_sheap_win;
 long    shmem_sheap_size;
 void *  shmem_sheap_base_ptr;
-
 /* dlmalloc mspace... */
 mspace shmem_heap_mspace;
+
+#ifdef OSHMPI_HAVE_FASTMEM
+MPI_Win shmem_sheapfast_win;
+long    shmem_sheapfast_size;
+void *  shmem_sheapfast_base_ptr;
+/* dlmalloc mspace... */
+mspace shmem_heapfast_mspace;
+#endif
 
 #ifdef ENABLE_MPMD_SUPPORT
 int     shmem_running_mpmd;

@@ -65,6 +65,16 @@ extern void *  shmem_etext_base_ptr;
 extern MPI_Win shmem_sheap_win;
 extern long    shmem_sheap_size;
 extern void *  shmem_sheap_base_ptr;
+/* dlmalloc mspace... */
+extern mspace shmem_heap_mspace;
+
+#ifdef OSHMPI_HAVE_FASTMEM
+extern MPI_Win shmem_sheapfast_win;
+extern long    shmem_sheapfast_size;
+extern void *  shmem_sheapfast_base_ptr;
+/* dlmalloc mspace... */
+extern mspace shmem_heapfast_mspace;
+#endif
 
 #ifdef ENABLE_MPMD_SUPPORT
 extern int     shmem_running_mpmd;
@@ -295,7 +305,7 @@ void oshmpi_initialize(int threading)
                 temp_rank_list[i] = i;
             }
             /* translate ranks in the node group to world ranks */
-            MPI_Group_translate_ranks(SHMEM_GROUP_NODE,  shmem_node_size, temp_rank_list, 
+            MPI_Group_translate_ranks(SHMEM_GROUP_NODE,  shmem_node_size, temp_rank_list,
                                       SHMEM_GROUP_WORLD, shmem_smp_rank_list);
             free(temp_rank_list);
         }
@@ -337,7 +347,7 @@ void oshmpi_initialize(int threading)
 
         /* dlmalloc mspace constructor.
          * locked may not need to be 0 if SHMEM makes no multithreaded access... */
-	/* Part (less than 128*sizeof(size_t) bytes) of this space is used for bookkeeping, 
+	/* Part (less than 128*sizeof(size_t) bytes) of this space is used for bookkeeping,
 	 * so the capacity must be at least this large */
 	shmem_sheap_size += 128*sizeof(size_t);
 #if SHMEM_DEBUG > 5
@@ -349,6 +359,42 @@ void oshmpi_initialize(int threading)
         memset(shmem_sheap_base_ptr,0,shmem_sheap_size);
 #endif
         shmem_heap_mspace = create_mspace_with_base(shmem_sheap_base_ptr, shmem_sheap_size, 0 /* locked */);
+        if (shmem_heap_mspace==NULL) oshmpi_abort(shmem_world_rank,"create_mspace_with_base failed");
+
+#ifdef OSHMPI_HAVE_FASTMEM
+        {
+            if (hbw_check_available()) {
+                char * env_char = getenv("OSHMPI_KNL_FAST_HEAP_SIZE");
+                shmem_sheapfast_size = (env_char!=NULL) ? atol(env_char) : 128000000L;
+            } else {
+                oshmpi_warn("No hbw available (will not be used)");
+                shmem_sheapfast_size = 0;
+            }
+
+            if (shmem_sheapfast_size>0) {
+
+                /* This is not doing to do what we want because it is not going to use shared memory.
+                 * For single-node usage, we need to use the JEMalloc interface directly to allocate
+                 * shared-memory in fastmem. */
+                int rc = hbw_posix_memalign(&shmem_sheapfast_base_ptr, 64, shmem_sheapfast_size);
+                if (rc!=0) oshmpi_abort(rc,"hbw_posix_memalign failed to allocate memory");
+
+                shmem_heap_mspace = create_mspace_with_base(shmem_sheapfast_base_ptr, shmem_sheapfast_size, 0 /* locked */);
+                if (shmem_heap_mspace==NULL) oshmpi_abort(shmem_world_rank,"create_mspace_with_base (fastmem) failed");
+
+                MPI_Info sheapfast_info=MPI_INFO_NULL;
+                MPI_Info_create(&sheapfast_info);
+                MPI_Info_set(sheapfast_info, "same_size", "true");
+
+                MPI_Win_create(shmem_sheapfast_base_ptr, shmem_sheapfast_size, 1 /* disp_unit */,
+                               sheapfast_info, SHMEM_COMM_WORLD, &shmem_sheapfast_win);
+
+                MPI_Win_lock_all(MPI_MODE_NOCHECK /* use 0 instead if things break */, shmem_sheapfast_win);
+
+                MPI_Info_free(&sheapfast_info);
+            }
+        }
+#endif
 
 	shmem_etext_base_ptr = (void*) get_etext();
         unsigned long long_etext_size   = get_end() - (unsigned long)shmem_etext_base_ptr;
@@ -368,8 +414,8 @@ void oshmpi_initialize(int threading)
 #ifdef ABUSE_MPICH_FOR_GLOBALS
         MPI_Win_create_dynamic(etext_info, SHMEM_COMM_WORLD, &shmem_etext_win);
 #else
-        MPI_Win_create(shmem_etext_base_ptr, shmem_etext_size, 1 /* disp_unit */, etext_info, SHMEM_COMM_WORLD, 
-                       &shmem_etext_win);
+        MPI_Win_create(shmem_etext_base_ptr, shmem_etext_size, 1 /* disp_unit */,
+                       etext_info, SHMEM_COMM_WORLD, &shmem_etext_win);
 #endif
         MPI_Win_lock_all(0, shmem_etext_win);
 
@@ -443,8 +489,30 @@ void oshmpi_finalize(void)
             MPI_Win_unlock_all(shmem_etext_win);
             MPI_Win_free(&shmem_etext_win);
 
+            /* Must free the sheap mspace BEFORE freeing the window,
+             * because it sits on top of the window memory. */
+            size_t heap_bytes_freed = destroy_mspace(shmem_heap_mspace);
+            if (heap_bytes_freed<shmem_sheap_size) {
+                oshmpi_warn("destroy_mspace freed fewer bytes than it was given");
+            }
+
             MPI_Win_unlock_all(shmem_sheap_win);
             MPI_Win_free(&shmem_sheap_win);
+
+#ifdef OSHMPI_HAVE_FASTMEM
+            if (shmem_sheapfast_size>0) {
+
+                MPI_Win_unlock_all(shmem_sheapfast_win);
+                MPI_Win_free(&shmem_sheapfast_win);
+
+                /* Must free the sheap mspace AFTER freeing the window,
+                 * because it windows sits on top of that memory. */
+                size_t heapfast_bytes_freed = destroy_mspace(shmem_heapfast_mspace);
+                if (heapfast_bytes_freed<shmem_sheapfast_size) {
+                    oshmpi_warn("destroy_mspace (fast) freed fewer bytes than it was given");
+                }
+            }
+#endif
 
 #ifdef ENABLE_SMP_OPTIMIZATIONS
             if (shmem_world_is_smp)
