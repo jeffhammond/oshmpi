@@ -58,4 +58,8 @@ void shmemx_putmem_ct(shmemx_ct_t ct, void *target, const void *source, size_t l
     shmem_long_add(ct, 1, pe);
 }
 
+#else
+
+static int shmemx_counting_put_is_not_available = 0;
+
 #endif

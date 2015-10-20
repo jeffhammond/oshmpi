@@ -157,4 +157,8 @@ void oshmpix_get_strided_2d(MPI_Datatype mpi_type, void *target, const void *sou
     return;
 }
 
+#else
+
+static int shmemx_armci_strided_is_not_available = 0;
+
 #endif
