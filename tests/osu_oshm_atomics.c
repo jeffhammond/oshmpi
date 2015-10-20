@@ -110,13 +110,13 @@ check_usage (int me, int npes, int argc, char * argv [])
             if (strncmp(argv[1], "heap", 10)
                     && strncmp(argv[1], "global", 10)) {
                 print_usage(me);
-                exit(EXIT_FAILURE);
+                //exit(EXIT_FAILURE);
             }
         }
 
         else {
             print_usage(me);
-            exit(EXIT_FAILURE);
+            //exit(EXIT_FAILURE);
         }
     }
 
@@ -668,7 +668,7 @@ main (int argc, char *argv[])
     /*
      * Allocate Memory
      */
-    use_heap = !strncmp(argv[1], "heap", 10);
+    use_heap = strncmp(argv[1], "global", 10);
     msg_buffer = allocate_memory(v.me, use_heap);
     memset(msg_buffer, 0, sizeof(union data_types [ITERATIONS]));
 

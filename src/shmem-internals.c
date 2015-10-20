@@ -492,7 +492,7 @@ void oshmpi_finalize(void)
             /* Must free the sheap mspace BEFORE freeing the window,
              * because it sits on top of the window memory. */
             size_t heap_bytes_freed = destroy_mspace(shmem_heap_mspace);
-            if (heap_bytes_freed<shmem_sheap_size) {
+            if (0 && heap_bytes_freed<shmem_sheap_size) {
                 oshmpi_warn("destroy_mspace freed fewer bytes than it was given");
             }
 

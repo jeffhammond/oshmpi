@@ -107,13 +107,13 @@ check_usage (int me, int npes, int argc, char * argv [])
             if (strncmp(argv[1], "heap", 10)
                     && strncmp(argv[1], "global", 10)) {
                 print_usage(me);
-                exit(EXIT_FAILURE);
+                //exit(EXIT_FAILURE);
             }
         }
 
         else {
             print_usage(me);
-            exit(EXIT_FAILURE);
+            //exit(EXIT_FAILURE);
         }
     }
 
@@ -254,7 +254,7 @@ main (int argc, char *argv[])
     /*
      * Allocate Memory
      */
-    use_heap = !strncmp(argv[1], "heap", 10);
+    use_heap = strncmp(argv[1], "global", 10);
     alignment = use_heap ? sysconf(_SC_PAGESIZE) : 4096;
     msg_buffer = allocate_memory(v.me, alignment, use_heap);
     aligned_buffer = align_memory((unsigned long)msg_buffer, alignment);
