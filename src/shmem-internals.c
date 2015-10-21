@@ -137,12 +137,26 @@ void oshmpi_initialize(int threading)
             oshmpi_abort(provided, "Your MPI implementation did not provide the requested thread support.");
     }
 
+    int oshmpi_verbose = 0;
+
     if (!shmem_is_initialized) {
 
         MPI_Comm_dup(MPI_COMM_WORLD, &SHMEM_COMM_WORLD);
         MPI_Comm_size(SHMEM_COMM_WORLD, &shmem_world_size);
         MPI_Comm_rank(SHMEM_COMM_WORLD, &shmem_world_rank);
         MPI_Comm_group(SHMEM_COMM_WORLD, &SHMEM_GROUP_WORLD);
+
+        {
+            /* Check for OSHMPI verbose print level */
+            char * env_char = NULL;
+            env_char = getenv("OSHMPI_VERBOSE");
+            if (env_char!=NULL) {
+                oshmpi_verbose = atoi(env_char);
+            }
+            if (oshmpi_verbose && shmem_world_rank==0) {
+                printf("Using %s\n", PACKAGE_STRING);
+            }
+        }
 
         {
             /* Check for MPMD usage. */
@@ -267,8 +281,8 @@ void oshmpi_initialize(int threading)
 #endif
             MPI_Bcast( &shmem_sheap_size, 1, MPI_LONG, 0, SHMEM_COMM_WORLD );
         }
-        if (shmem_world_rank==0) {
-            printf("OSHMPI symmetric heap size is %ld\n",shmem_sheap_size);
+        if (oshmpi_verbose && shmem_world_rank==0) {
+            printf("OSHMPI: symmetric heap size is %ld\n",shmem_sheap_size);
         }
 
         MPI_Info sheap_info=MPI_INFO_NULL, etext_info=MPI_INFO_NULL;
@@ -287,6 +301,14 @@ void oshmpi_initialize(int threading)
         MPI_Info_set(sheap_info, "accumulate_ordering", "");
         MPI_Info_set(etext_info, "accumulate_ordering", "");
 #endif
+
+        if (oshmpi_verbose && shmem_world_rank==0) {
+#ifdef ENABLE_SMP_OPTIMIZATIONS
+            printf("OSHMPI: shared-memory optimizations are %s\n","enabled");
+#else
+            printf("OSHMPI: shared-memory optimizations are %s\n","disabled");
+#endif
+        }
 
 #ifdef ENABLE_SMP_OPTIMIZATIONS
         {
@@ -371,6 +393,10 @@ void oshmpi_initialize(int threading)
                 shmem_sfast_size = 0;
             }
 
+            if (oshmpi_verbose && shmem_world_rank==0) {
+                printf("OSHMPI: symmetric fast size is %ld\n",shmem_sfast_size);
+            }
+
             if (shmem_sfast_size>0) {
 
                 /* This is not doing to do what we want because it is not going to use shared memory.
@@ -451,6 +477,14 @@ void oshmpi_initialize(int threading)
             comm_cache[i].group = MPI_GROUP_NULL;
         }
 #endif
+
+        if (oshmpi_verbose && shmem_world_rank==0) {
+#if ENABLE_COMM_CACHING
+            printf("OSHMPI: communication caching is %s\n","enabled");
+#else
+            printf("OSHMPI: communication caching is %s\n","disabled");
+#endif
+        }
 
         MPI_Barrier(SHMEM_COMM_WORLD);
 
