@@ -364,7 +364,7 @@ void oshmpi_initialize(int threading)
 #ifdef EXTENSION_HBW_ALLOCATOR
         {
             if (hbw_check_available()) {
-                char * env_char = getenv("OSHMPI_KNL_FAST_HEAP_SIZE");
+                char * env_char = getenv("OSHMPI_HBW_HEAP_SIZE");
                 shmem_sheapfast_size = (env_char!=NULL) ? atol(env_char) : 128000000L;
             } else {
                 oshmpi_warn("No hbw available (will not be used)");
