@@ -107,8 +107,18 @@ shmem_comm_t * comm_cache;
 #endif
 /*****************************************************************/
 
-enum shmem_window_id_e { SHMEM_SHEAP_WINDOW = 0, SHMEM_ETEXT_WINDOW = 1, SHMEM_INVALID_WINDOW = -1 };
-enum shmem_coll_type_e { SHMEM_BARRIER = 0, SHMEM_BROADCAST = 1, SHMEM_ALLREDUCE = 2, SHMEM_FCOLLECT = 4, SHMEM_COLLECT = 8};
+enum shmem_window_id_e { SHMEM_SHEAP_WINDOW = 0,
+#ifdef EXTENSION_HBW_ALLOCATOR
+                         SHMEM_SHEAPFAST_WINDOW = 1,
+#endif
+                         SHMEM_ETEXT_WINDOW = 2,
+                         SHMEM_INVALID_WINDOW = -1 };
+
+enum shmem_coll_type_e { SHMEM_BARRIER   = 0,
+                         SHMEM_BROADCAST = 1,
+                         SHMEM_ALLREDUCE = 2,
+                         SHMEM_FCOLLECT  = 4,
+                         SHMEM_COLLECT   = 8};
 
 /*****************************************************************/
 

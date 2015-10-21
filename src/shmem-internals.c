@@ -536,12 +536,18 @@ void oshmpi_finalize(void)
 
 void oshmpi_remote_sync(void)
 {
+#ifdef EXTENSION_HBW_ALLOCATOR
+    MPI_Win_flush_all(shmem_sheapfast_win);
+#endif
     MPI_Win_flush_all(shmem_sheap_win);
     MPI_Win_flush_all(shmem_etext_win);
 }
 
 void oshmpi_remote_sync_pe(int pe)
 {
+#ifdef EXTENSION_HBW_ALLOCATOR
+    MPI_Win_flush(pe, shmem_sheapfast_win);
+#endif
     MPI_Win_flush(pe, shmem_sheap_win);
     MPI_Win_flush(pe, shmem_etext_win);
 }
@@ -550,6 +556,9 @@ void oshmpi_local_sync(void)
 {
 #ifdef ENABLE_SMP_OPTIMIZATIONS
     __sync_synchronize();
+#endif
+#ifdef EXTENSION_HBW_ALLOCATOR
+    MPI_Win_sync(shmem_sheapfast_win);
 #endif
     MPI_Win_sync(shmem_sheap_win);
     MPI_Win_sync(shmem_etext_win);
@@ -568,9 +577,15 @@ int oshmpi_window_offset(const void *address, const int pe, /* IN  */
 #if SHMEM_DEBUG>5
     printf("[%d] shmem_etext_base_ptr=%p \n", shmem_world_rank, shmem_etext_base_ptr );
     printf("[%d] shmem_sheap_base_ptr=%p \n", shmem_world_rank, shmem_sheap_base_ptr );
+#ifdef EXTENSION_HBW_ALLOCATOR
+    printf("[%d] shmem_sheapfast_base_ptr=%p \n", shmem_world_rank, shmem_sheapfast_base_ptr );
+#endif
     fflush(stdout);
 #endif
 
+#ifdef EXTENSION_HBW_ALLOCATOR
+    ptrdiff_t sheapfast_offset = (intptr_t)address - (intptr_t)shmem_sheapfast_base_ptr;
+#endif
     ptrdiff_t sheap_offset = (intptr_t)address - (intptr_t)shmem_sheap_base_ptr;
     ptrdiff_t etext_offset = (intptr_t)address - (intptr_t)shmem_etext_base_ptr;
 
@@ -583,6 +598,17 @@ int oshmpi_window_offset(const void *address, const int pe, /* IN  */
 #endif
         return 0;
     }
+#ifdef EXTENSION_HBW_ALLOCATOR
+    else if (0 <= sheapfast_offset && sheapfast_offset <= shmem_sheapfast_size) {
+        *win_offset = sheapfast_offset;
+        *win_id     = SHMEM_SHEAPFAST_WINDOW;
+#if SHMEM_DEBUG>5
+        printf("[%d] found address in sheapfast window \n", shmem_world_rank);
+        printf("[%d] win_offset=%ld \n", shmem_world_rank, *win_offset);
+#endif
+        return 0;
+    }
+#endif
     else if (0 <= etext_offset && etext_offset <= shmem_etext_size) {
         *win_offset = etext_offset;
         *win_id     = SHMEM_ETEXT_WINDOW;
