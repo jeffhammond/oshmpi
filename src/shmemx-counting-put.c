@@ -7,12 +7,12 @@
 
 void shmemx_ct_create(shmemx_ct_t *ct)
 {
-    *ct = shmalloc(sizeof(long));
+    *ct = shmem_malloc(sizeof(long));
 }
 
 void shmemx_ct_free(shmemx_ct_t *ct)
 {
-    shfree(*ct);
+    shmem_free(*ct);
 }
 
 long shmemx_ct_get(shmemx_ct_t ct)
