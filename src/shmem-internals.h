@@ -76,9 +76,9 @@ void *  shmem_sheap_base_ptr;
 mspace shmem_heap_mspace;
 
 #ifdef EXTENSION_HBW_ALLOCATOR
-MPI_Win shmem_sheapfast_win;
-long    shmem_sheapfast_size;
-void *  shmem_sheapfast_base_ptr;
+MPI_Win shmem_sfast_win;
+long    shmem_sfast_size;
+void *  shmem_sfast_base_ptr;
 /* dlmalloc mspace... */
 mspace shmem_heapfast_mspace;
 #endif
@@ -109,7 +109,7 @@ shmem_comm_t * comm_cache;
 
 enum shmem_window_id_e { SHMEM_SHEAP_WINDOW = 0,
 #ifdef EXTENSION_HBW_ALLOCATOR
-                         SHMEM_SHEAPFAST_WINDOW = 1,
+                         SHMEM_SFAST_WINDOW = 1,
 #endif
                          SHMEM_ETEXT_WINDOW = 2,
                          SHMEM_INVALID_WINDOW = -1 };

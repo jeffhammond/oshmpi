@@ -11,7 +11,7 @@
 # else
    /* These definitions are here for debugging only.
     * They must be removed before merging to master. */
-   int hbw_check_available(void) { return 0; }
+   int hbw_check_available(void) { return -1; /* returns 0 if available */ }
    void* hbw_malloc(size_t size) { return NULL; };
    void* hbw_calloc(size_t nmemb, size_t size) { return NULL; };
    void* hbw_realloc (void *ptr, size_t size) { return NULL; };

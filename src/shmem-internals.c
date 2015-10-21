@@ -69,9 +69,9 @@ extern void *  shmem_sheap_base_ptr;
 extern mspace shmem_heap_mspace;
 
 #ifdef EXTENSION_HBW_ALLOCATOR
-extern MPI_Win shmem_sheapfast_win;
-extern long    shmem_sheapfast_size;
-extern void *  shmem_sheapfast_base_ptr;
+extern MPI_Win shmem_sfast_win;
+extern long    shmem_sfast_size;
+extern void *  shmem_sfast_base_ptr;
 /* dlmalloc mspace... */
 extern mspace shmem_heapfast_mspace;
 #endif
@@ -363,35 +363,35 @@ void oshmpi_initialize(int threading)
 
 #ifdef EXTENSION_HBW_ALLOCATOR
         {
-            if (hbw_check_available()) {
+            if (hbw_check_available()==0 /* yes */) {
                 char * env_char = getenv("OSHMPI_HBW_HEAP_SIZE");
-                shmem_sheapfast_size = (env_char!=NULL) ? atol(env_char) : 128000000L;
+                shmem_sfast_size = (env_char!=NULL) ? atol(env_char) : 128000000L;
             } else {
                 oshmpi_warn("No hbw available (will not be used)");
-                shmem_sheapfast_size = 0;
+                shmem_sfast_size = 0;
             }
 
-            if (shmem_sheapfast_size>0) {
+            if (shmem_sfast_size>0) {
 
                 /* This is not doing to do what we want because it is not going to use shared memory.
                  * For single-node usage, we need to use the JEMalloc interface directly to allocate
                  * shared-memory in fastmem. */
-                int rc = hbw_posix_memalign(&shmem_sheapfast_base_ptr, 64, shmem_sheapfast_size);
+                int rc = hbw_posix_memalign(&shmem_sfast_base_ptr, 64, shmem_sfast_size);
                 if (rc!=0) oshmpi_abort(rc,"hbw_posix_memalign failed to allocate memory");
 
-                shmem_heap_mspace = create_mspace_with_base(shmem_sheapfast_base_ptr, shmem_sheapfast_size, 0 /* locked */);
+                shmem_heap_mspace = create_mspace_with_base(shmem_sfast_base_ptr, shmem_sfast_size, 0 /* locked */);
                 if (shmem_heap_mspace==NULL) oshmpi_abort(shmem_world_rank,"create_mspace_with_base (fastmem) failed");
 
-                MPI_Info sheapfast_info=MPI_INFO_NULL;
-                MPI_Info_create(&sheapfast_info);
-                MPI_Info_set(sheapfast_info, "same_size", "true");
+                MPI_Info sfast_info=MPI_INFO_NULL;
+                MPI_Info_create(&sfast_info);
+                MPI_Info_set(sfast_info, "same_size", "true");
 
-                MPI_Win_create(shmem_sheapfast_base_ptr, shmem_sheapfast_size, 1 /* disp_unit */,
-                               sheapfast_info, SHMEM_COMM_WORLD, &shmem_sheapfast_win);
+                MPI_Win_create(shmem_sfast_base_ptr, shmem_sfast_size, 1 /* disp_unit */,
+                               sfast_info, SHMEM_COMM_WORLD, &shmem_sfast_win);
 
-                MPI_Win_lock_all(MPI_MODE_NOCHECK /* use 0 instead if things break */, shmem_sheapfast_win);
+                MPI_Win_lock_all(MPI_MODE_NOCHECK /* use 0 instead if things break */, shmem_sfast_win);
 
-                MPI_Info_free(&sheapfast_info);
+                MPI_Info_free(&sfast_info);
             }
         }
 #endif
@@ -497,10 +497,10 @@ void oshmpi_finalize(void)
             MPI_Win_free(&shmem_sheap_win);
 
 #ifdef EXTENSION_HBW_ALLOCATOR
-            if (shmem_sheapfast_size>0) {
+            if (shmem_sfast_size>0) {
 
-                MPI_Win_unlock_all(shmem_sheapfast_win);
-                MPI_Win_free(&shmem_sheapfast_win);
+                MPI_Win_unlock_all(shmem_sfast_win);
+                MPI_Win_free(&shmem_sfast_win);
 
                 /* Must free the sheap mspace AFTER freeing the window,
                  * because it windows sits on top of that memory. */
@@ -537,7 +537,7 @@ void oshmpi_finalize(void)
 void oshmpi_remote_sync(void)
 {
 #ifdef EXTENSION_HBW_ALLOCATOR
-    MPI_Win_flush_all(shmem_sheapfast_win);
+    MPI_Win_flush_all(shmem_sfast_win);
 #endif
     MPI_Win_flush_all(shmem_sheap_win);
     MPI_Win_flush_all(shmem_etext_win);
@@ -546,7 +546,7 @@ void oshmpi_remote_sync(void)
 void oshmpi_remote_sync_pe(int pe)
 {
 #ifdef EXTENSION_HBW_ALLOCATOR
-    MPI_Win_flush(pe, shmem_sheapfast_win);
+    MPI_Win_flush(pe, shmem_sfast_win);
 #endif
     MPI_Win_flush(pe, shmem_sheap_win);
     MPI_Win_flush(pe, shmem_etext_win);
@@ -558,7 +558,7 @@ void oshmpi_local_sync(void)
     __sync_synchronize();
 #endif
 #ifdef EXTENSION_HBW_ALLOCATOR
-    MPI_Win_sync(shmem_sheapfast_win);
+    MPI_Win_sync(shmem_sfast_win);
 #endif
     MPI_Win_sync(shmem_sheap_win);
     MPI_Win_sync(shmem_etext_win);
@@ -566,8 +566,8 @@ void oshmpi_local_sync(void)
 
 /* return 0 on successful lookup, otherwise 1 */
 int oshmpi_window_offset(const void *address, const int pe, /* IN  */
-                          enum shmem_window_id_e * win_id,   /* OUT */
-                          shmem_offset_t * win_offset)       /* OUT */
+                          enum shmem_window_id_e * win_id,  /* OUT */
+                          shmem_offset_t * win_offset)      /* OUT */
 {
 #if SHMEM_DEBUG>3
     printf("[%d] oshmpi_window_offset: address=%p, pe=%d \n", shmem_world_rank, address, pe);
@@ -578,13 +578,13 @@ int oshmpi_window_offset(const void *address, const int pe, /* IN  */
     printf("[%d] shmem_etext_base_ptr=%p \n", shmem_world_rank, shmem_etext_base_ptr );
     printf("[%d] shmem_sheap_base_ptr=%p \n", shmem_world_rank, shmem_sheap_base_ptr );
 #ifdef EXTENSION_HBW_ALLOCATOR
-    printf("[%d] shmem_sheapfast_base_ptr=%p \n", shmem_world_rank, shmem_sheapfast_base_ptr );
+    printf("[%d] shmem_sfast_base_ptr=%p \n", shmem_world_rank, shmem_sfast_base_ptr );
 #endif
     fflush(stdout);
 #endif
 
 #ifdef EXTENSION_HBW_ALLOCATOR
-    ptrdiff_t sheapfast_offset = (intptr_t)address - (intptr_t)shmem_sheapfast_base_ptr;
+    ptrdiff_t sfast_offset = (intptr_t)address - (intptr_t)shmem_sfast_base_ptr;
 #endif
     ptrdiff_t sheap_offset = (intptr_t)address - (intptr_t)shmem_sheap_base_ptr;
     ptrdiff_t etext_offset = (intptr_t)address - (intptr_t)shmem_etext_base_ptr;
@@ -599,11 +599,11 @@ int oshmpi_window_offset(const void *address, const int pe, /* IN  */
         return 0;
     }
 #ifdef EXTENSION_HBW_ALLOCATOR
-    else if (0 <= sheapfast_offset && sheapfast_offset <= shmem_sheapfast_size) {
-        *win_offset = sheapfast_offset;
-        *win_id     = SHMEM_SHEAPFAST_WINDOW;
+    else if (0 <= sfast_offset && sfast_offset <= shmem_sfast_size) {
+        *win_offset = sfast_offset;
+        *win_id     = SHMEM_SFAST_WINDOW;
 #if SHMEM_DEBUG>5
-        printf("[%d] found address in sheapfast window \n", shmem_world_rank);
+        printf("[%d] found address in sfast window \n", shmem_world_rank);
         printf("[%d] win_offset=%ld \n", shmem_world_rank, *win_offset);
 #endif
         return 0;
