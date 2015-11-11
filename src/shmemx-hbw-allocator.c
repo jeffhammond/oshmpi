@@ -16,8 +16,8 @@
    void* hbw_calloc(size_t nmemb, size_t size) { return NULL; };
    void* hbw_realloc (void *ptr, size_t size) { return NULL; };
    void hbw_free(void *ptr) { return; };
-   int hbw_posix_memalign(void **memptr, size_t alignment, size_t size) { return NULL; };
-   int hbw_posix_memalign_psize(void **memptr, size_t alignment, size_t size, int pagesize) { return NULL; };
+   int hbw_posix_memalign(void **memptr, size_t alignment, size_t size) { *memptr=NULL; return -1; };
+   int hbw_posix_memalign_psize(void **memptr, size_t alignment, size_t size, int pagesize) { *memptr=NULL; return -1; };
    int hbw_get_policy(void) { return 0; };
    int hbw_set_policy(int mode) { return -1; };
 # endif
