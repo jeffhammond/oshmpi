@@ -49,14 +49,14 @@ void shmem_global_exit(int status)
     return;
 }
 
-void shmem_info_get_version(int *major, int *minor);
+void shmem_info_get_version(int *major, int *minor)
 {
     *major = SHMEM_MAJOR_VERSION;
     *minor = SHMEM_MINOR_VERSION;
     return;
 }
 
-void shmem_info_get_name(char *name);
+void shmem_info_get_name(char *name)
 {
     strncpy(name, SHMEM_VENDOR_STRING, SHMEM_MAX_NAME_LEN);
     name[SHMEM_MAX_NAME_LEN-1] = '\0'; /* Ensure string is null terminated */
