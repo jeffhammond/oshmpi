@@ -120,6 +120,8 @@ void oshmpi_swap(MPI_Datatype mpi_type, void *output, void *remote, const void *
 void oshmpi_cswap(MPI_Datatype mpi_type, void *output, void *remote, const void *input, const void *compare, int pe);
 void oshmpi_add(MPI_Datatype mpi_type, void *remote, const void *input, int pe);
 void oshmpi_fadd(MPI_Datatype mpi_type, void *output, void *remote, const void *input, int pe);
+void oshmpi_fetch(MPI_Datatype mpi_type, void *output, void *remote, int pe);
+void oshmpi_set(MPI_Datatype mpi_type, void *remote, const void *input, int pe);
 
 void oshmpi_create_comm(int pe_start, int log_pe_stride, int pe_size,
                         MPI_Comm * comm, MPI_Group * strided_group);
