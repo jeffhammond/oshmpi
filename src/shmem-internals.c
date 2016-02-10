@@ -960,8 +960,8 @@ void oshmpi_set(MPI_Datatype mpi_type, void *remote, const void *input, int pe)
         } else if (mpi_type==MPI_DOUBLE) {
             double * ptr = (double*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
             double tmp = __sync_lock_test_and_set(ptr,*(long long*)input);
-        }
 #endif
+        }
         /* GCC intrinsics give the wrong answer for double swap so we just avoid trying. */
     } else
 #endif
