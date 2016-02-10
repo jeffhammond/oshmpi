@@ -1327,6 +1327,11 @@ void oshmpi_coll(enum shmem_coll_type_e coll, MPI_Datatype mpi_type, MPI_Op redu
                 free(rcounts);
             }
             break;
+        case SHMEM_ALLTOALL:
+            {
+                MPI_Alltoall(source, count, tmp_type, target, count, tmp_type, comm);
+            }
+            break;
         case SHMEM_ALLREDUCE:
             /* From the OpenSHMEM 1.0 specification:
             "[The] source and target may be the same array, but they must not be overlapping arrays." */
