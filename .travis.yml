@@ -12,12 +12,11 @@ env:
   #- MPI_IMPL=openmpi
 before_install:
   ## Set up the environment
-  - mkdir $HOME/travis
-  - mkdir $HOME/travis/src
-  - mkdir $HOME/travis/install
   - export OSHMPI_SRC=$PWD
   - export TRAVIS_SRC=$HOME/travis/source
   - export TRAVIS_INSTALL=$HOME/travis/install
+  - mkdir -p $TRAVIS_SRC
+  - mkdir -p $TRAVIS_INSTALL
   # from http://askubuntu.com/questions/420991/install-autoconf-2-69-on-ubuntu-12-04/632769#632769
   - sudo add-apt-repository ppa:dns/gnu -y
   - sudo apt-get update -q
