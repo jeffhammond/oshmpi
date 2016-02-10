@@ -610,6 +610,60 @@ void shmem_longlong_inc(long long *t, int pe)
     oshmpi_add(MPI_LONG_LONG, t, &v, pe);
 }
 
+/* 8.X: Atomic Memory fetch-and-operate Routines -- Fetch */
+float shmem_float_fetch(float *t, int pe)
+{
+    float r;
+    oshmpi_fetch(MPI_FLOAT, &r, t, pe) ;
+    return r;
+}
+double shmem_double_fetch(double *t, int pe)
+{
+    double r;
+    oshmpi_fetch(MPI_DOUBLE, &r, t, pe) ;
+    return r;
+}
+int shmem_int_fetch(int *t, int pe)
+{
+    int r;
+    oshmpi_fetch(MPI_INT, &r, t, pe) ;
+    return r;
+}
+long shmem_long_fetch(long *t, int pe)
+{
+    long r;
+    oshmpi_fetch(MPI_LONG, &r, t, pe) ;
+    return r;
+}
+long long shmem_longlong_fetch(long long *t, int pe)
+{
+    long long r;
+    oshmpi_fetch(MPI_LONG_LONG, &r, t, pe) ;
+    return r;
+}
+
+/* 8.X: Atomic Memory fetch-and-operate Routines -- Set */
+void shmem_float_set(float *t, float v, int pe)
+{
+    oshmpi_set(MPI_FLOAT, t, &v, pe) ;
+}
+void shmem_double_set(double *t, double v, int pe)
+{
+    oshmpi_set(MPI_DOUBLE, t, &v, pe) ;
+}
+void shmem_int_set(int *t, int v, int pe)
+{
+    oshmpi_set(MPI_INT, t, &v, pe) ;
+}
+void shmem_long_set(long *t, long v, int pe)
+{
+    oshmpi_set(MPI_LONG, t, &v, pe) ;
+}
+void shmem_longlong_set(long long *t, long long v, int pe)
+{
+    oshmpi_set(MPI_LONG_LONG, t, &v, pe) ;
+}
+
 #else
 
 #warning shmem_{int,long,longlong}_{inc,add,finc,fadd} have been disabled.
