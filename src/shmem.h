@@ -3,7 +3,7 @@
  * Copyright 2011 Sandia Corporation. Under the terms of Contract
  * DE-AC04-94AL85000 with Sandia Corporation, the U.S.  Government
  * retains certain rights in this software.
- * 
+ *
  * This file is part of the Portals SHMEM software package. For license
  * information, see the LICENSE file in the top level directory of the
  * distribution.
@@ -30,7 +30,7 @@
 #include <mpi.h>
 #if (MPI_VERSION < 2)
 #  error It appears that you have been living under a rock.
-#elif (MPI_VERSION < 3) 
+#elif (MPI_VERSION < 3)
 #  if defined(MPICH2)
 #    error Get the latest MPICH, MVAPICH2 or CrayMPI for MPI-3 support.
 #  else
@@ -196,7 +196,7 @@ long shmem_swap(long *target, long value, int pe);
 /* 8.12: Atomic Memory fetch-and-operate Routines -- Cswap */
 int shmem_int_cswap(int *target, int cond, int value, int pe);
 long shmem_long_cswap(long *target, long cond, long value, int pe);
-long long shmem_longlong_cswap(long long * target, long long cond, 
+long long shmem_longlong_cswap(long long * target, long long cond,
                           long long value, int pe);
 
 /* 8.12: Atomic Memory fetch-and-operate Routines -- Fetch and Add */
@@ -255,49 +255,49 @@ void shmem_longlong_and_to_all(long long *target, long long *source,
                                int nreduce, int PE_start, int logPE_stride,
                                int PE_size, long long *pWrk, long *pSync);
 
-void shmem_short_or_to_all(short *target, short *source, int nreduce, 
-                           int PE_start, int logPE_stride, int PE_size, 
+void shmem_short_or_to_all(short *target, short *source, int nreduce,
+                           int PE_start, int logPE_stride, int PE_size,
                            short *pWrk, long *pSync);
-void shmem_int_or_to_all(int *target, int *source, int nreduce, 
-                         int PE_start, int logPE_stride, int PE_size, 
+void shmem_int_or_to_all(int *target, int *source, int nreduce,
+                         int PE_start, int logPE_stride, int PE_size,
                          int *pWrk, long *pSync);
 void shmem_long_or_to_all(long *target, long *source, int nreduce,
-                          int PE_start, int logPE_stride, int PE_size, 
+                          int PE_start, int logPE_stride, int PE_size,
                           long *pWrk, long *pSync);
 void shmem_longlong_or_to_all(long long *target, long long *source,
                               int nreduce, int PE_start, int logPE_stride,
                               int PE_size, long long *pWrk, long *pSync);
 
 void shmem_short_xor_to_all(short *target, short *source, int nreduce,
-                            int PE_start, int logPE_stride, int PE_size, 
+                            int PE_start, int logPE_stride, int PE_size,
                             short *pWrk, long *pSync);
-void shmem_int_xor_to_all(int *target, int *source, int nreduce, 
-                          int PE_start, int logPE_stride, int PE_size, 
+void shmem_int_xor_to_all(int *target, int *source, int nreduce,
+                          int PE_start, int logPE_stride, int PE_size,
                           int *pWrk, long *pSync);
 void shmem_long_xor_to_all(long *target, long *source, int nreduce,
-                           int PE_start, int logPE_stride, int PE_size, 
+                           int PE_start, int logPE_stride, int PE_size,
                            long *pWrk, long *pSync);
 void shmem_longlong_xor_to_all(long long *target, long long *source,
                                int nreduce, int PE_start, int logPE_stride,
                                int PE_size, long long *pWrk, long *pSync);
 
-void shmem_float_min_to_all(float *target, float *source, int nreduce, 
-                            int PE_start, int logPE_stride, int PE_size, 
+void shmem_float_min_to_all(float *target, float *source, int nreduce,
+                            int PE_start, int logPE_stride, int PE_size,
                             float *pWrk, long *pSync);
 void shmem_double_min_to_all(double *target, double *source, int nreduce,
-                             int PE_start, int logPE_stride, int PE_size, 
+                             int PE_start, int logPE_stride, int PE_size,
                              double *pWrk, long *pSync);
 void shmem_longdouble_min_to_all(long double *target, long double *source,
                                  int nreduce, int PE_start, int logPE_stride,
                                  int PE_size, long double *pWrk, long *pSync);
-void shmem_short_min_to_all(short *target, short *source, int nreduce, 
-                            int PE_start, int logPE_stride, int PE_size, 
+void shmem_short_min_to_all(short *target, short *source, int nreduce,
+                            int PE_start, int logPE_stride, int PE_size,
                             short *pWrk, long *pSync);
-void shmem_int_min_to_all(int *target, int *source, int nreduce, 
-                          int PE_start, int logPE_stride, int PE_size, 
+void shmem_int_min_to_all(int *target, int *source, int nreduce,
+                          int PE_start, int logPE_stride, int PE_size,
                           int *pWrk, long *pSync);
 void shmem_long_min_to_all(long *target, long *source, int nreduce,
-                           int PE_start, int logPE_stride, int PE_size, 
+                           int PE_start, int logPE_stride, int PE_size,
                            long *pWrk, long *pSync);
 void shmem_longlong_min_to_all(long long *target, long long *source,
                                int nreduce, int PE_start, int logPE_stride,
@@ -326,10 +326,10 @@ void shmem_longlong_max_to_all(long long *target, long long *source,
                                int PE_size, long long *pWrk, long *pSync);
 
 void shmem_float_sum_to_all(float *target, float *source, int nreduce,
-                            int PE_start, int logPE_stride, int PE_size, 
+                            int PE_start, int logPE_stride, int PE_size,
                             float *pWrk, long *pSync);
-void shmem_double_sum_to_all(double *target, double *source, int nreduce, 
-                             int PE_start, int logPE_stride, int PE_size, 
+void shmem_double_sum_to_all(double *target, double *source, int nreduce,
+                             int PE_start, int logPE_stride, int PE_size,
                              double *pWrk, long *pSync);
 void shmem_longdouble_sum_to_all(long double *target, long double *source,
                                  int nreduce, int PE_start, int logPE_stride,
@@ -340,23 +340,23 @@ void shmem_complexf_sum_to_all(float complex *target, float complex *source,
 void shmem_complexd_sum_to_all(double complex *target, double complex *source,
                                int nreduce, int PE_start, int logPE_stride,
                                int PE_size, double complex *pWrk, long *pSync);
-void shmem_short_sum_to_all(short *target, short *source, int nreduce, 
-                            int PE_start, int logPE_stride, int PE_size, 
+void shmem_short_sum_to_all(short *target, short *source, int nreduce,
+                            int PE_start, int logPE_stride, int PE_size,
                             short *pWrk, long *pSync);
-void shmem_int_sum_to_all(int *target, int *source, int nreduce, 
-                          int PE_start, int logPE_stride, int PE_size, 
+void shmem_int_sum_to_all(int *target, int *source, int nreduce,
+                          int PE_start, int logPE_stride, int PE_size,
                           int *pWrk, long *pSync);
 void shmem_long_sum_to_all(long *target, long *source, int nreduce,
-                           int PE_start, int logPE_stride, int PE_size, 
+                           int PE_start, int logPE_stride, int PE_size,
                            long *pWrk, long *pSync);
 void shmem_longlong_sum_to_all(long long *target, long long *source,
                                int nreduce, int PE_start, int logPE_stride,
                                int PE_size, long long *pWrk, long *pSync);
 
-void shmem_float_prod_to_all(float *target, float *source, int nreduce, 
-                             int PE_start, int logPE_stride, int PE_size, 
+void shmem_float_prod_to_all(float *target, float *source, int nreduce,
+                             int PE_start, int logPE_stride, int PE_size,
                              float *pWrk, long *pSync);
-void shmem_double_prod_to_all(double *target, double *source, int nreduce, 
+void shmem_double_prod_to_all(double *target, double *source, int nreduce,
                               int PE_start, int logPE_stride, int PE_size,
                               double *pWrk, long *pSync);
 void shmem_longdouble_prod_to_all(long double *target, long double *source,
@@ -365,18 +365,18 @@ void shmem_longdouble_prod_to_all(long double *target, long double *source,
 void shmem_complexf_prod_to_all(float complex *target, float complex *source,
                                 int nreduce, int PE_start, int logPE_stride,
                                 int PE_size, float complex *pWrk, long *pSync);
-void shmem_complexd_prod_to_all(double complex *target, 
-                                double complex *source, int nreduce, 
-                                int PE_start, int logPE_stride, int PE_size, 
+void shmem_complexd_prod_to_all(double complex *target,
+                                double complex *source, int nreduce,
+                                int PE_start, int logPE_stride, int PE_size,
                                 double complex *pWrk, long *pSync);
-void shmem_short_prod_to_all(short *target, short *source, int nreduce, 
-                             int PE_start, int logPE_stride, int PE_size, 
+void shmem_short_prod_to_all(short *target, short *source, int nreduce,
+                             int PE_start, int logPE_stride, int PE_size,
                              short *pWrk, long *pSync);
 void shmem_int_prod_to_all(int *target, int *source, int nreduce,
-                           int PE_start, int logPE_stride, int PE_size, 
+                           int PE_start, int logPE_stride, int PE_size,
                            int *pWrk, long *pSync);
 void shmem_long_prod_to_all(long *target, long *source, int nreduce,
-                            int PE_start, int logPE_stride, int PE_size, 
+                            int PE_start, int logPE_stride, int PE_size,
                             long *pWrk, long *pSync);
 void shmem_longlong_prod_to_all(long long *target, long long *source,
                                 int nreduce, int PE_start, int logPE_stride,
@@ -395,7 +395,7 @@ void shmem_fcollect64(void *target, const void *source, size_t nlong,
                       long *pSync);
 
 /* 8.18: Broadcast Routines */
-void shmem_broadcast32(void *target, const void *source, size_t nlong, 
+void shmem_broadcast32(void *target, const void *source, size_t nlong,
                        int PE_root, int PE_start, int logPE_stride,
                        int PE_size, long *pSync);
 void shmem_broadcast64(void *target, const void *source, size_t nlong,
