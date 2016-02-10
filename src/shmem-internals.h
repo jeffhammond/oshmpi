@@ -83,7 +83,7 @@ shmem_comm_t * comm_cache;
 /*****************************************************************/
 
 enum shmem_window_id_e { SHMEM_SHEAP_WINDOW = 0, SHMEM_ETEXT_WINDOW = 1, SHMEM_INVALID_WINDOW = -1 };
-enum shmem_coll_type_e { SHMEM_BARRIER = 0, SHMEM_BROADCAST = 1, SHMEM_ALLREDUCE = 2, SHMEM_FCOLLECT = 4, SHMEM_COLLECT = 8, SHMEM_ALLTOALL = 16 };
+enum shmem_coll_type_e { SHMEM_BARRIER = 0, SHMEM_BROADCAST = 1, SHMEM_ALLREDUCE = 2, SHMEM_FCOLLECT = 4, SHMEM_COLLECT = 8, SHMEM_ALLTOALL = 16, SHMEM_ALLTOALLS = 32 };
 
 /*****************************************************************/
 
@@ -135,7 +135,9 @@ static inline void oshmpi_set_psync(int count, long value, long * pSync)
 }
 
 void oshmpi_coll(enum shmem_coll_type_e coll, MPI_Datatype mpi_type, MPI_Op reduce_op,
-                 void * target, const void * source, size_t len, 
+                 void * target, const void * source,
+                 ptrdiff_t target_ptrdiff, ptrdiff_t source_ptrdiff,
+                 size_t len,
                  int pe_root, int pe_start, int log_pe_stride, int pe_size);
 
 #endif // SHMEM_INTERNALS_H

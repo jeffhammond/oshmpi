@@ -1277,7 +1277,9 @@ static inline void oshmpi_release_comm(int pe_start, int pe_logs, int pe_size, /
 }
 
 void oshmpi_coll(enum shmem_coll_type_e coll, MPI_Datatype mpi_type, MPI_Op reduce_op,
-                  void * target, const void * source, size_t len,
+                  void * target, const void * source,
+                  ptrdiff_t target_ptrdiff, ptrdiff_t source_ptrdiff, /* <--- ALLTOALLS only */
+                  size_t len,
                   int pe_root, int pe_start, int pe_logs, int pe_size)
 {
     int broot = 0;
@@ -1299,7 +1301,9 @@ void oshmpi_coll(enum shmem_coll_type_e coll, MPI_Datatype mpi_type, MPI_Op redu
 
     switch (coll) {
         case SHMEM_BARRIER:
-            MPI_Barrier( comm );
+            {
+                MPI_Barrier( comm );
+            }
             break;
         case SHMEM_BROADCAST:
             {
@@ -1311,7 +1315,9 @@ void oshmpi_coll(enum shmem_coll_type_e coll, MPI_Datatype mpi_type, MPI_Op redu
 	    }
             break;
         case SHMEM_FCOLLECT:
-            MPI_Allgather(source, count, tmp_type, target, count, tmp_type, comm);
+            {
+                MPI_Allgather(source, count, tmp_type, target, count, tmp_type, comm);
+            }
             break;
         case SHMEM_COLLECT:
             {
@@ -1332,10 +1338,38 @@ void oshmpi_coll(enum shmem_coll_type_e coll, MPI_Datatype mpi_type, MPI_Op redu
                 MPI_Alltoall(source, count, tmp_type, target, count, tmp_type, comm);
             }
             break;
+        case SHMEM_ALLTOALLS:
+            {
+                assert( (ptrdiff_t)INT32_MIN<target_ptrdiff && target_ptrdiff<(ptrdiff_t)INT32_MAX );
+                assert( (ptrdiff_t)INT32_MIN<source_ptrdiff && source_ptrdiff<(ptrdiff_t)INT32_MAX );
+
+                int target_stride = (int) target_ptrdiff;
+                int source_stride = (int) source_ptrdiff;
+
+                MPI_Datatype source_type;
+                MPI_Type_vector(count, 1, source_stride, mpi_type, &source_type);
+                MPI_Type_commit(&source_type);
+
+                MPI_Datatype target_type;
+                if (target_stride!=source_stride) {
+                    MPI_Type_vector(count, 1, target_stride, mpi_type, &target_type);
+                    MPI_Type_commit(&target_type);
+                } else {
+                    target_type = source_type;
+                }
+                MPI_Alltoall(source, count, source_type, target, count, target_type, comm);
+                if (target_stride!=source_stride) {
+                    MPI_Type_free(&target_type);
+                }
+                MPI_Type_free(&source_type);
+            }
+            break;
         case SHMEM_ALLREDUCE:
-            /* From the OpenSHMEM 1.0 specification:
-            "[The] source and target may be the same array, but they must not be overlapping arrays." */
-            MPI_Allreduce((source==target) ? MPI_IN_PLACE : source, target, count, tmp_type, reduce_op, comm);
+            {
+                /* From the OpenSHMEM 1.0 specification:
+                "[The] source and target may be the same array, but they must not be overlapping arrays." */
+                MPI_Allreduce((source==target) ? MPI_IN_PLACE : source, target, count, tmp_type, reduce_op, comm);
+            }
             break;
         default:
             oshmpi_abort(coll, "Unsupported collective type.");
