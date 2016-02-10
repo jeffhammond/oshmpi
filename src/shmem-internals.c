@@ -494,9 +494,9 @@ void oshmpi_local_sync(void)
 }
 
 /* return 0 on successful lookup, otherwise 1 */
-int oshmpi_window_offset(const void *address, const int pe, /* IN  */
-                          enum shmem_window_id_e * win_id,   /* OUT */
-                          shmem_offset_t * win_offset)       /* OUT */
+int oshmpi_window_offset(const OSHMPI_VOLATILE void *address, const int pe, /* IN  */
+                         enum shmem_window_id_e * win_id,   /* OUT */
+                         shmem_offset_t * win_offset)       /* OUT */
 {
 #if SHMEM_DEBUG>3
     printf("[%d] oshmpi_window_offset: address=%p, pe=%d \n", shmem_world_rank, address, pe);
@@ -656,6 +656,124 @@ void oshmpi_get(MPI_Datatype mpi_type, void *target, const void *source, size_t 
             MPI_Type_free(&tmp_type);
         }
         MPI_Win_flush_local(pe, win);
+    }
+    return;
+}
+
+void oshmpi_put_nbi(MPI_Datatype mpi_type, void *target, const void *source, size_t len, int pe)
+{
+    enum shmem_window_id_e win_id;
+    shmem_offset_t win_offset;
+
+#if SHMEM_DEBUG>3
+    printf("[%d] oshmpi_put_nbi: type=%d, target=%p, source=%p, len=%zu, pe=%d \n",
+            shmem_world_rank, mpi_type, target, source, len, pe);
+    fflush(stdout);
+#endif
+
+    if (oshmpi_window_offset(target, pe, &win_id, &win_offset)) {
+        oshmpi_abort(pe, "oshmpi_window_offset failed to find put target");
+    }
+
+#if SHMEM_DEBUG>3
+    printf("[%d] win_id=%d, offset=%lld \n",
+           shmem_world_rank, win_id, (long long)win_offset);
+    fflush(stdout);
+#endif
+
+    MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
+
+#ifdef ENABLE_SMP_OPTIMIZATIONS
+    if (shmem_world_is_smp && win_id==SHMEM_SHEAP_WINDOW) {
+        int type_size = OSHMPI_Type_size(mpi_type);
+        void * ptr = (void*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)target - (intptr_t)shmem_sheap_base_ptr) );
+        memcpy(ptr, source, len*type_size);
+    } else
+#endif
+    {
+        int count = 0;
+        MPI_Datatype tmp_type;
+        if ( likely(len<(size_t)INT32_MAX) ) { /* need second check if size_t is signed */
+            count = len;
+            tmp_type = mpi_type;
+        } else {
+            count = 1;
+            MPIX_Type_contiguous_x(len, mpi_type, &tmp_type);
+            MPI_Type_commit(&tmp_type);
+        }
+#ifdef ENABLE_RMA_ORDERING
+        /* ENABLE_RMA_ORDERING means "RMA operations are ordered" */
+        MPI_Accumulate(source, count, tmp_type,                   /* origin */
+                       pe, (MPI_Aint)win_offset, count, tmp_type, /* target */
+                       MPI_REPLACE,                               /* atomic, ordered Put */
+                       win);
+#else
+        MPI_Put(source, count, tmp_type,                   /* origin */
+                pe, (MPI_Aint)win_offset, count, tmp_type, /* target */
+                win);
+#endif
+        if ( unlikely(len>(size_t)INT32_MAX) ) {
+            MPI_Type_free(&tmp_type);
+        }
+    }
+    return;
+}
+
+void oshmpi_get_nbi(MPI_Datatype mpi_type, void *target, const void *source, size_t len, int pe)
+{
+    enum shmem_window_id_e win_id;
+    shmem_offset_t win_offset;
+
+#if SHMEM_DEBUG>3
+    printf("[%d] oshmpi_get_nbi: type=%d, target=%p, source=%p, len=%zu, pe=%d \n",
+            shmem_world_rank, mpi_type, target, source, len, pe);
+    fflush(stdout);
+#endif
+
+    if (oshmpi_window_offset(source, pe, &win_id, &win_offset)) {
+        oshmpi_abort(pe, "oshmpi_window_offset failed to find get source");
+    }
+
+#if SHMEM_DEBUG>3
+    printf("[%d] win_id=%d, offset=%lld \n",
+           shmem_world_rank, win_id, (long long)win_offset);
+    fflush(stdout);
+#endif
+
+    MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
+#ifdef ENABLE_SMP_OPTIMIZATIONS
+    if (shmem_world_is_smp && win_id==SHMEM_SHEAP_WINDOW) {
+        int type_size = OSHMPI_Type_size(mpi_type);
+        void * ptr = (void*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)source - (intptr_t)shmem_sheap_base_ptr) );
+        memcpy(target, ptr, len*type_size);
+    } else
+#endif
+    {
+        int count = 0;
+        MPI_Datatype tmp_type;
+        if ( likely(len<(size_t)INT32_MAX) ) { /* need second check if size_t is signed */
+            count = len;
+            tmp_type = mpi_type;
+        } else {
+            count = 1;
+            MPIX_Type_contiguous_x(len, mpi_type, &tmp_type);
+            MPI_Type_commit(&tmp_type);
+        }
+#ifdef ENABLE_RMA_ORDERING
+        /* ENABLE_RMA_ORDERING means "RMA operations are ordered" */
+        MPI_Get_accumulate(NULL, 0, MPI_DATATYPE_NULL,                /* origin */
+                           target, count, tmp_type,                   /* result */
+                           pe, (MPI_Aint)win_offset, count, tmp_type, /* remote */
+                           MPI_NO_OP,                                 /* atomic, ordered Get */
+                           win);
+#else
+        MPI_Get(target, count, tmp_type,                   /* result */
+                pe, (MPI_Aint)win_offset, count, tmp_type, /* remote */
+                win);
+#endif
+        if ( unlikely(len>(size_t)INT32_MAX) ) {
+            MPI_Type_free(&tmp_type);
+        }
     }
     return;
 }
@@ -854,7 +972,7 @@ void oshmpi_set(MPI_Datatype mpi_type, void *remote, const void *input, int pe)
     return;
 }
 
-void oshmpi_fetch(MPI_Datatype mpi_type, void *output, void *remote, int pe)
+void oshmpi_fetch(MPI_Datatype mpi_type, void *output, OSHMPI_CONST void *remote, int pe)
 {
     enum shmem_window_id_e win_id;
     shmem_offset_t win_offset;

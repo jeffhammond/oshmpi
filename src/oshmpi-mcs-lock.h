@@ -17,8 +17,8 @@ typedef struct oshmpi_lock_s
 
 void oshmpi_allock(MPI_Comm comm);
 void oshmpi_deallock(void);
-void oshmpi_lock(long * lockp);
-void oshmpi_unlock(long * lockp);
-int  oshmpi_trylock(long * lockp);
+void oshmpi_lock(OSHMPI_VOLATILE long * lockp);
+void oshmpi_unlock(OSHMPI_VOLATILE long * lockp);
+int  oshmpi_trylock(OSHMPI_VOLATILE long * lockp);
 
 #endif /* OSHMPI_MCS_LOCK_H */

@@ -40,7 +40,7 @@ void oshmpi_deallock(void)
   return;
 }
 
-void oshmpi_lock(long * lockp)
+void oshmpi_lock(OSHMPI_VOLATILE long * lockp)
 {
   MPI_Status status;
   oshmpi_lock_t *lock = (oshmpi_lock_t *) lockp;
@@ -65,7 +65,7 @@ void oshmpi_lock(long * lockp)
   return;
 }
 
-void oshmpi_unlock(long * lockp)
+void oshmpi_unlock(OSHMPI_VOLATILE long * lockp)
 {
   oshmpi_lock_t *lock = (oshmpi_lock_t *) lockp;
   /* Determine my next process */
@@ -84,7 +84,7 @@ void oshmpi_unlock(long * lockp)
   return;
 }
 
-int oshmpi_trylock(long * lockp)
+int oshmpi_trylock(OSHMPI_VOLATILE long * lockp)
 {
   int is_locked = -1, nil = -1;
   oshmpi_lock_t *lock = (oshmpi_lock_t *) lockp;
