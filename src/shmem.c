@@ -4,14 +4,17 @@
  * DE-AC04-94AL85000 with Sandia Corporation, the U.S.  Government
  * retains certain rights in this software.
  *
- * This file is part of the Portals SHMEM software package. For license
+ * Copyright (c) 2015 Intel Corporation. All rights reserved.
+ * This software is available to you under the BSD license.
+ *
  * information, see the LICENSE file in the top level directory of the
  * distribution.
  *
  */
 
 /* This file was derived from shmem.h from the Portals4-SHMEM project.
- * All of the implementation code was written by Jeff Hammond.
+ * Most of the implementation code was written by Jeff Hammond.
+ * Small portions were taken from Sandia OpenSHMEM.
  */
 
 #include "shmem.h"
@@ -43,6 +46,20 @@ void shmem_finalize(void)
 void shmem_global_exit(int status)
 {
     oshmpi_abort(status,NULL);
+    return;
+}
+
+void shmem_info_get_version(int *major, int *minor);
+{
+    *major = SHMEM_MAJOR_VERSION;
+    *minor = SHMEM_MINOR_VERSION;
+    return;
+}
+
+void shmem_info_get_name(char *name);
+{
+    strncpy(name, SHMEM_VENDOR_STRING, SHMEM_MAX_NAME_LEN);
+    name[SHMEM_MAX_NAME_LEN-1] = '\0'; /* Ensure string is null terminated */
     return;
 }
 
@@ -87,19 +104,37 @@ int shmem_addr_accessible(void *addr, int pe)
 
 /* 8.4: Symmetric Heap Routines */
 
+void *shmem_align(size_t alignment, size_t size)
+{
+    return mspace_memalign(shmem_heap_mspace, alignment, size);
+}
+
 void *shmemalign(size_t alignment, size_t size)
 {
     return mspace_memalign(shmem_heap_mspace, alignment, size);
 }
 
+void *shmem_malloc(size_t size)
+{
+    return mspace_malloc(shmem_heap_mspace, size);
+}
 void *shmalloc(size_t size)
 {
     return mspace_malloc(shmem_heap_mspace, size);
 }
 
+void *shmem_realloc(void *ptr, size_t size)
+{
+    return mspace_realloc(shmem_heap_mspace, ptr, size);
+}
 void *shrealloc(void *ptr, size_t size)
 {
     return mspace_realloc(shmem_heap_mspace, ptr, size);
+}
+
+void shmem_free(void *ptr)
+{
+    return mspace_free(shmem_heap_mspace, ptr);
 }
 
 void shfree(void *ptr)
