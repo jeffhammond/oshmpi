@@ -5,7 +5,6 @@ set -ev
 
 # Environment variables
 export CFLAGS="-std=c99"
-#export MPICH_CC=$CC
 export MPICC=mpicc
 
 SMP_OPT="$1"
@@ -15,13 +14,15 @@ SMP_OPT="$1"
 
 case "$SMP_OPT" in
     0)
-        ./configure --enable-g --disable-static
+        ./configure --prefix=$TRAVIS_INSTALL
         ;;
     1)
-        ./configure --enable-g --disable-static --enable-smp-optimizations
+        ./configure --prefix=$TRAVIS_INSTALL --enable-smp-optimizations
         ;;
 esac
 
 # Run unit tests
-export SHMEM_SYMMETRIC_HEAP_SIZE=100M
+export SHMEM_SYMMETRIC_HEAP_SIZE=500M
+make
 make check
+make install

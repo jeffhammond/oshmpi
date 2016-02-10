@@ -11,13 +11,55 @@ env:
   - MPI_IMPL=mpich SMP_OPT=1
   #- MPI_IMPL=openmpi
 before_install:
+  ## Set up the environment
+  - mkdir $HOME/travis
+  - mkdir $HOME/travis/src
+  - mkdir $HOME/travis/install
+  - export OSHMPI_SRC=$PWD
+  - export TRAVIS_SRC=$HOME/travis/source
+  - export TRAVIS_INSTALL=$HOME/travis/install
   # from http://askubuntu.com/questions/420991/install-autoconf-2-69-on-ubuntu-12-04/632769#632769
   - sudo add-apt-repository ppa:dns/gnu -y
   - sudo apt-get update -q
   - sudo apt-get install --only-upgrade autoconf
   - sh ./travis/install-deps.sh $MPI_IMPL
+  ## Fetch UH Tests
+  - cd $TRAVIS_SRC
+  #- git clone --depth 10 https://github.com/openshmem-org/tests-uh.git tests-uh
+  - git clone --depth 10 -b ci-master https://github.com/jdinan/tests-uh.git tests-uh
+  ## Fetch ISx
+  - cd $TRAVIS_SRC
+  - git clone --depth 10 https://github.com/ParRes/ISx.git ISx
+  ## Fetch PRK
+  - cd $TRAVIS_SRC
+  - git clone --depth 10 https://github.com/ParRes/Kernels.git PRK
+  - echo -e "SHMEMCC=oshcc\nSHMEMTOP=$$TRAVIS_INSTALL\n" > PRK/common/make.defs
 script:
+  # This only runs OSHMPI test suite
   - sh ./travis/build-run.sh $SMP_OPT
+  - export PATH=$TRAVIS_INSTALL/oshmpi/bin:$PATH
+  # is this necessary for OSHMPI?
+  - export OSHRUN_LAUNCHER="mpiexec.hydra"
+  # Run the UH test suite
+  - cd $TRAVIS_SRC/tests-uh
+  - make C_feature_tests
+  - make C_feature_tests-run 2>&1 | tee uh-tests-c-feature-tests.log
+  - if grep -qi Fail uh-tests-c-feature-tests.log; then false; else true; fi
+  # Run PRK
+  - cd $TRAVIS_SRC/PRK
+  - make allshmem
+  - mpiexec.hydra -np 4 ./SHMEM/Stencil/stencil 100 1000 2>&1 | tee stencil.log
+  - grep -qi "Solution validates" stencil.log
+  - mpiexec.hydra -np 4 ./SHMEM/Synch_p2p/p2p 10 1000 1000 2>&1 | tee p2p.log
+  - grep -qi "Solution validates" p2p.log
+  - mpiexec.hydra -np 4 ./SHMEM/Transpose/transpose 10 1000 32 2>&1 | tee transpose.log
+  - grep -qi "Solution validates" transpose.log
+  # Run ISx
+  - cd $TRAVIS_SRC/ISx/SHMEM
+  - make CC=oshcc LDLIBS=-lm
+  - mpiexec.hydra -np 4 ./bin/isx.strong 134217728 output_strong
+  - mpiexec.hydra -np 4 ./bin/isx.weak 33554432 output_weak
+  - mpiexec.hydra -np 4 ./bin/isx.weak_iso 33554432 output_weak_iso
 after_failure:
   - cat ./config.log
   - head -n100 ./tests/*.log
