@@ -41,6 +41,10 @@ script:
   - export PATH=$TRAVIS_INSTALL/bin:$PATH
   - which oshcc
   - find $HOME/travis -name oshcc
+  - cat `which oshcc`
+  - which mpicc
+  - mpicc -show
+  - which mpiexec.hydra
   # is this necessary for OSHMPI?
   - export OSHRUN_LAUNCHER="mpiexec.hydra"
   # Run the UH test suite
