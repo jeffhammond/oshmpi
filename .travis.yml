@@ -45,8 +45,8 @@ script:
   - export OSHRUN_LAUNCHER="mpiexec.hydra"
   # Run the UH test suite
   - cd $TRAVIS_SRC/tests-uh
-  - make C_feature_tests
-  - make C_feature_tests-run 2>&1 | tee uh-tests-c-feature-tests.log
+  - make CC=oshcc C_feature_tests
+  - make RUNCMD=mpiexec.hydra C_feature_tests-run 2>&1 | tee uh-tests-c-feature-tests.log
   - if grep -qi Fail uh-tests-c-feature-tests.log; then false; else true; fi
   # Run PRK
   - cd $TRAVIS_SRC/PRK
