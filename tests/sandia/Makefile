@@ -28,4 +28,4 @@ clean:
 	-rm -f *.o
 	-rm -f $(TESTS)
 	-rm -rf *.dSYM
-	-rf -f *.log
+	-rm -f *.log
