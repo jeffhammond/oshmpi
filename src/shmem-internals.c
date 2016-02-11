@@ -1187,15 +1187,20 @@ static inline int oshmpi_translate_root(MPI_Group strided_group, int pe_root)
 /* TODO 
  * One might assume that the same subcomms are used more than once and thus caching these is prudent.
  */
-static inline void oshmpi_acquire_comm(int pe_start, int pe_logs, int pe_size, /* IN  */ 
-                                        MPI_Comm * comm,                        /* OUT */
-                                        int pe_root,                            /* IN  */
-                                        int * broot)                            /* OUT */
+static inline void oshmpi_acquire_comm(int pe_start, int pe_logs, int pe_size, /* IN  */
+                                       MPI_Comm * comm,                        /* OUT */
+                                       int pe_root,                            /* IN  */
+                                       int * broot)                            /* OUT */
 {
     /* fastpath for world */
     if (pe_start==0 && pe_logs==0 && pe_size==shmem_world_size) {
         *comm  = SHMEM_COMM_WORLD;
         *broot = pe_root;
+#if SHMEM_DEBUG > 5
+        if (shmem_world_rank==0) {
+            printf("[%d] oshmpi_acquire_comm fastpath for SHMEM_COMM_WORLD\n", shmem_world_rank);
+        }
+#endif
         return;
     }
 
@@ -1222,8 +1227,24 @@ static inline void oshmpi_acquire_comm(int pe_start, int pe_logs, int pe_size, /
 
         /* Implement 2^pe_logs with bitshift. */
         int pe_stride = 1<<pe_logs;
-        for (int i=0; i<pe_size; i++)
+        for (int i=0; i<pe_size; i++) {
             pe_list[i] = pe_start + i*pe_stride;
+        }
+
+#if SHMEM_DEBUG > 5
+        if (shmem_world_size<10) {
+            printf("[%d] pe_start=%d, pe_logs=%d, pe_size=%d\n",
+                    shmem_world_rank, pe_start, pe_logs, pe_size);
+            char buf[1024];
+            memset(buf,'\0',1024);
+            sprintf(&(buf[0]),"[%1d] pe_list[]=", shmem_world_rank);
+            for (int i=0; i<pe_size; i++) {
+                sprintf(&(buf[14+i*2]),"%1d ", pe_list[i]);
+            }
+            printf("%s\n",buf);
+            fflush(stdout);
+        }
+#endif
 
         MPI_Group_incl(SHMEM_GROUP_WORLD, pe_size, pe_list, &strided_group);
         /* Unlike the MPI-2 variant (MPI_Comm_create), this is only collective on the group. */
