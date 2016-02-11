@@ -88,7 +88,6 @@ main(int argc, char **argv)
 
     shmem_init();
     me = shmem_my_pe();
-    nProcs = shmem_n_pes();
 
     while ((c = getopt (argc, argv, "hpv")) != -1)
         switch (c)
