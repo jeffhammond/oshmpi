@@ -46,6 +46,10 @@ script:
   - which mpicc
   - mpicc -show
   - which mpiexec.hydra
+  # Run the SOS tests
+  - cd $OSHMPI_SRC/tests/sandia
+  - make
+  - make check
   # is this necessary for OSHMPI?
   - export OSHRUN_LAUNCHER="mpiexec.hydra"
   # Run the UH test suite
