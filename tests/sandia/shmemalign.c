@@ -77,7 +77,7 @@ getSize (char *str)
 int
 main(int argc, char **argv)
 {
-    int me, nProcs, c, l, j;
+    int me, c, l, j;
     int nWords, loops, incWords;
 
     pgm = strrchr(argv[0],'/');
