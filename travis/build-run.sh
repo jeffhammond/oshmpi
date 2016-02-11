@@ -14,10 +14,10 @@ SMP_OPT="$1"
 
 case "$SMP_OPT" in
     0)
-        ./configure --prefix=$TRAVIS_INSTALL
+        ./configure --prefix=$TRAVIS_INSTALL --disable-shared
         ;;
     1)
-        ./configure --prefix=$TRAVIS_INSTALL --enable-smp-optimizations
+        ./configure --prefix=$TRAVIS_INSTALL --disable-shared --enable-smp-optimizations
         ;;
 esac
 
