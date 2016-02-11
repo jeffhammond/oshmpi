@@ -40,9 +40,15 @@ static void alltoall_test(int32_t *out, int32_t *in, int pe_start, int pe_stride
         else
             expected = -1;
 
+        /*
         if (out[i] != expected)
             printf("[%d] out[%d] = %d, expected %d\n", me, i, out[i], expected);
+        */
+        printf("[%d] out[%d] = %d, expected %d (%s)\n", me, i, out[i], expected,
+                (out[i] != expected) ? "WRONG" : "RIGHT");
     }
+    fflush(stdout);
+    shmem_barrier_all();
 }
 
 
@@ -61,13 +67,13 @@ int main(int argc, char **argv) {
     out = shmem_malloc(4 * npes);
 
     /* All PEs */
-    alltoall_test(out, in, 0, 0, npes);
+    //alltoall_test(out, in, 0, 0, npes);
     /* Only PE 0, stride is invalid (should be ignored) */
-    alltoall_test(out, in, 0, 13, 1);
+    //alltoall_test(out, in, 0, 13, 1);
     /* Only even PEs */
     alltoall_test(out, in, 0, 1, npes / 2 + npes % 2);
 
-    if (npes > 1) {
+    if (0) {//npes > 1) {
         /* Remove PE n-1 */
         alltoall_test(out, in, 0, 0, npes-1);
         /* Remove PE 0 */
