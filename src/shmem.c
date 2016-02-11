@@ -903,7 +903,7 @@ void shmem_alltoalls32(void *dest, const void *source, ptrdiff_t dst,
                        int logPE_stride, int PE_size, long *pSync)
 {
     oshmpi_set_psync(SHMEM_COLLECT_SYNC_SIZE, SHMEM_SYNC_VALUE, pSync);
-    oshmpi_coll(SHMEM_ALLTOALLS,  MPI_INT64_T, MPI_OP_NULL, dest, source, dst, sst, nelems, -1 /* root */, PE_start, logPE_stride, PE_size);
+    oshmpi_coll(SHMEM_ALLTOALLS,  MPI_INT32_T, MPI_OP_NULL, dest, source, dst, sst, nelems, -1 /* root */, PE_start, logPE_stride, PE_size);
 }
 void shmem_alltoalls64(void *dest, const void *source, ptrdiff_t dst,
                        ptrdiff_t sst, size_t nelems, int PE_start,
