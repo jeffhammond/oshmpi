@@ -21,6 +21,7 @@ before_install:
   - sudo add-apt-repository ppa:dns/gnu -y
   - sudo apt-get update -q
   - sudo apt-get install --only-upgrade autoconf
+  - cd $OSHMPI_SRC
   - sh ./travis/install-deps.sh $MPI_IMPL
   ## Fetch UH Tests
   - cd $TRAVIS_SRC
@@ -35,8 +36,11 @@ before_install:
   - echo -e "SHMEMCC=oshcc\nSHMEMTOP=$$TRAVIS_INSTALL\n" > PRK/common/make.defs
 script:
   # This only runs OSHMPI test suite
+  - cd $OSHMPI_SRC
   - sh ./travis/build-run.sh $SMP_OPT
-  - export PATH=$TRAVIS_INSTALL/oshmpi/bin:$PATH
+  - export PATH=$TRAVIS_INSTALL/bin:$PATH
+  - which oshcc
+  - find $HOME/travis -name oshcc
   # is this necessary for OSHMPI?
   - export OSHRUN_LAUNCHER="mpiexec.hydra"
   # Run the UH test suite
