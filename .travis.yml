@@ -11,6 +11,7 @@ env:
   - MPI_IMPL=mpich SMP_OPT=1
   #- MPI_IMPL=openmpi
 before_install:
+  - export SHMEM_SYMMETRIC_HEAP_SIZE=200M
   ## Set up the environment
   - export OSHMPI_SRC=$PWD
   - export TRAVIS_SRC=$HOME/travis/source
