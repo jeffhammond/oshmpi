@@ -3,8 +3,11 @@
  * Copyright 2011 Sandia Corporation. Under the terms of Contract
  * DE-AC04-94AL85000 with Sandia Corporation, the U.S.  Government
  * retains certain rights in this software.
- * 
- * This file is part of the Portals SHMEM software package. For license
+ *
+ * Copyright (c) 2015 Intel Corporation. All rights reserved.
+ * This software is available to you under the BSD license.
+ *
+ * This file is part of the Sandia OpenSHMEM software package. For license
  * information, see the LICENSE file in the top level directory of the
  * distribution.
  *
@@ -13,12 +16,14 @@
 #ifndef OSHMPI_SHMEM_H
 #define OSHMPI_SHMEM_H
 
+#include <stddef.h>
+#include <complex.h>
+
+/* these should not be here */
 #include <stdio.h>
 #include <stdlib.h>
-#include <stddef.h>
 #include <stdint.h>
 #include <string.h>
-#include <complex.h>
 #include <assert.h>
 
 /* These few lines and the ones they replaced are the only changes to this file. */
@@ -30,13 +35,18 @@
 #include <mpi.h>
 #if (MPI_VERSION < 2)
 #  error It appears that you have been living under a rock.
-#elif (MPI_VERSION < 3) 
+#elif (MPI_VERSION < 3)
 #  if defined(MPICH2)
 #    error Get the latest MPICH, MVAPICH2 or CrayMPI for MPI-3 support.
 #  else
 #    error You need MPI-3.  Try MPICH or one of its derivatives.
 #  endif
 #endif
+
+#define OSHMPI_CONST const
+#define OSHMPI_VOLATILE volatile
+#define OSHMPI_DEPRECATED __attribute__ ((deprecated))
+
 /* -- end changes -- */
 
 #define SHMEM_CMP_EQ 1
@@ -46,40 +56,59 @@
 #define SHMEM_CMP_LT 5
 #define SHMEM_CMP_LE 6
 
-#define _SHMEM_BCAST_SYNC_SIZE 1
-#define _SHMEM_REDUCE_SYNC_SIZE 1
-#define _SHMEM_BARRIER_SYNC_SIZE 1
-#define _SHMEM_COLLECT_SYNC_SIZE 2
-#define _SHMEM_REDUCE_MIN_WRKDATA_SIZE 1
-#define SHMEM_BCAST_SYNC_SIZE _SHMEM_BCAST_SYNC_SIZE
-#define _SHMEM_SYNC_VALUE 0
+#define _SHMEM_CMP_EQ 1
+#define _SHMEM_CMP_NE 2
+#define _SHMEM_CMP_GT 3
+#define _SHMEM_CMP_GE 4
+#define _SHMEM_CMP_LT 5
+#define _SHMEM_CMP_LE 6
 
-/* 8.1: Initialization Routines */
-void start_pes(int npes);
+#define _SHMEM_BCAST_SYNC_SIZE 1
+#define  SHMEM_BCAST_SYNC_SIZE 1
+#define _SHMEM_REDUCE_SYNC_SIZE 1
+#define  SHMEM_REDUCE_SYNC_SIZE 1
+#define _SHMEM_BARRIER_SYNC_SIZE 1
+#define  SHMEM_BARRIER_SYNC_SIZE 1
+#define _SHMEM_COLLECT_SYNC_SIZE 1
+#define  SHMEM_COLLECT_SYNC_SIZE 1
+#define _SHMEM_ALLTOALL_SYNC_SIZE 1
+#define  SHMEM_ALLTOALL_SYNC_SIZE 1
+#define _SHMEM_REDUCE_MIN_WRKDATA_SIZE 1
+#define  SHMEM_REDUCE_MIN_WRKDATA_SIZE 1
+
+#define  SHMEM_SYNC_VALUE 0
+#define _SHMEM_SYNC_VALUE SHMEM_SYNC_VALUE
+
+#define  SHMEM_MAJOR_VERSION 1
+#define _SHMEM_MAJOR_VERSION SHMEM_MAJOR_VERSION
+#define  SHMEM_MINOR_VERSION 2
+#define _SHMEM_MINOR_VERSION SHMEM_MINOR_VERSION
+#define  SHMEM_MAX_NAME_LEN  256
+#define _SHMEM_MAX_NAME_LEN  SHMEM_MAX_NAME_LEN
+#define  SHMEM_VENDOR_STRING "OpenSHMEM over MPI-3 RMA"
+#define _SHMEM_VENDOR_STRING SHMEM_VENDOR_STRING
+
+/* 8.1: OpenSHMEM Library API Library Setup, Exit, and Query Routines */
 void shmem_init(void);
 void shmem_finalize(void);
 void shmem_global_exit(int status);
-
-/* 8.2: Query Routines */
-int _num_pes(void);
 int shmem_n_pes(void);
-int _my_pe(void);
 int shmem_my_pe(void);
 
-/* 8.3: Accessibility Query Routines */
 int shmem_pe_accessible(int pe);
-int shmem_addr_accessible(void *addr, int pe);
+int shmem_addr_accessible(OSHMPI_CONST void *addr, int pe);
+void *shmem_ptr(OSHMPI_CONST void *target, int pe);
 
-/* 8.4: Symmetric Heap Routines */
-void *shmalloc(size_t size);
-void *shmemalign(size_t alignment, size_t size);
-void *shrealloc(void *ptr, size_t size);
-void shfree(void *ptr);
+void shmem_info_get_version(int *major, int *minor);
+void shmem_info_get_name(char *name);
 
-/* 8.5: Remote Pointer Operations */
-void *shmem_ptr(void *target, int pe);
+/* 8.2: Memory Management Routines */
+void *shmem_malloc(size_t size);
+void *shmem_align(size_t alignment, size_t size);
+void *shmem_realloc(void *ptr, size_t size);
+void shmem_free(void *ptr);
 
-/* 8.6: Elemental Put Routines */
+/* 8.3: Elemental Data Put Routines */
 void shmem_float_p(float *addr, float value, int pe);
 void shmem_double_p(double *addr, double value, int pe);
 void shmem_longdouble_p(long double *addr, long double value, int pe);
@@ -89,28 +118,26 @@ void shmem_int_p(int *addr, int value, int pe);
 void shmem_long_p(long *addr, long value, int pe);
 void shmem_longlong_p(long long *addr, long long value, int pe);
 
-/* 8.7: Block Data Put Routines */
+/* 8.3: Block Data Put Routines */
 void shmem_float_put(float *target, const float *source, size_t len, int pe);
 void shmem_double_put(double *target, const double *source, size_t len,
                       int pe);
 void shmem_longdouble_put(long double *target, const long double *source,
                           size_t len, int pe);
-void shmem_char_put(char *target, const char *source, size_t nelems, int pe);
+void shmem_char_put(char *dest, const char *source, size_t nelems, int pe);
 void shmem_short_put(short *target, const short *source, size_t len, int pe);
 void shmem_int_put(int *target, const int *source, size_t len, int pe);
 void shmem_long_put(long *target, const long *source, size_t len, int pe);
 void shmem_longlong_put(long long *target, const long long *source,
                         size_t len, int pe);
+void shmem_put8(void *dest, const void *source, size_t nelems, int pe);
+void shmem_put16(void *dest, const void *source, size_t nelems, int pe);
 void shmem_put32(void *target, const void *source, size_t len, int pe);
 void shmem_put64(void *target, const void *source, size_t len, int pe);
 void shmem_put128(void *target, const void *source, size_t len, int pe);
 void shmem_putmem(void *target, const void *source, size_t len, int pe);
-void shmem_complexf_put(float complex * target,
-                        const float complex * source, size_t nelems, int pe);
-void shmem_complexd_put(double complex * target,
-                        const double complex * source, size_t nelems, int pe);
 
-/* 8.8: Strided Put Routines */
+/* 8.3: Strided Put Routines */
 void shmem_float_iput(float *target, const float *source, ptrdiff_t tst,
                       ptrdiff_t sst, size_t len, int pe);
 void shmem_double_iput(double *target, const double *source, ptrdiff_t tst,
@@ -132,38 +159,36 @@ void shmem_iput64(void *target, const void *source, ptrdiff_t tst,
 void shmem_iput128(void *target, const void *source, ptrdiff_t tst,
                    ptrdiff_t sst, size_t len, int pe);
 
-/* 8.9: Elemental Data Get Routines */
-float shmem_float_g(float *addr, int pe);
-double shmem_double_g(double *addr, int pe);
-long double shmem_longdouble_g(long double *addr, int pe);
-char shmem_char_g(char *addr, int pe);
-short shmem_short_g(short *addr, int pe);
-int shmem_int_g(int *addr, int pe);
-long shmem_long_g(long *addr, int pe);
-long long shmem_longlong_g(long long *addr, int pe);
+/* 8.3: Elemental Data Get Routines */
+float shmem_float_g(OSHMPI_CONST float *addr, int pe);
+double shmem_double_g(OSHMPI_CONST double *addr, int pe);
+long double shmem_longdouble_g(OSHMPI_CONST long double *addr, int pe);
+char shmem_char_g(OSHMPI_CONST char *addr, int pe);
+short shmem_short_g(OSHMPI_CONST short *addr, int pe);
+int shmem_int_g(OSHMPI_CONST int *addr, int pe);
+long shmem_long_g(OSHMPI_CONST long *addr, int pe);
+long long shmem_longlong_g(OSHMPI_CONST long long *addr, int pe);
 
-/* 8.10 Block Data Get Routines */
+/* 8.3: Block Data Get Routines */
 void shmem_float_get(float *target, const float *source, size_t len, int pe);
 void shmem_double_get(double *target, const double *source, size_t len,
                       int pe);
 void shmem_longdouble_get(long double *target, const long double *source,
                           size_t len, int pe);
-void shmem_char_get(char *target, const char *source, size_t len, int pe);
+void shmem_char_get(char *dest, const char *source, size_t nelems, int pe);
 void shmem_short_get(short *target, const short *source, size_t len, int pe);
 void shmem_int_get(int *target, const int *source, size_t len, int pe);
 void shmem_long_get(long *target, const long *source, size_t len, int pe);
 void shmem_longlong_get(long long *target, const long long *source,
                         size_t len, int pe);
+void shmem_get8(void *dest, const void *source, size_t nelems, int pe);
+void shmem_get16(void *dest, const void *source, size_t nelems, int pe);
 void shmem_get32(void *target, const void *source, size_t len, int pe);
 void shmem_get64(void *target, const void *source, size_t len, int pe);
 void shmem_get128(void *target, const void *source, size_t len, int pe);
 void shmem_getmem(void *target, const void *source, size_t len, int pe);
-void shmem_complexf_get(float complex * target,
-                        const float complex * source, size_t nelems, int pe);
-void shmem_complexd_get(double complex * target,
-                        const double complex * source, size_t nelems, int pe);
 
-/* 8.11: Strided Get Routines */
+/* 8.3: Strided Get Routines */
 void shmem_float_iget(float *target, const float *source, ptrdiff_t tst,
                       ptrdiff_t sst, size_t len, int pe);
 void shmem_double_iget(double *target, const double *source, ptrdiff_t tst,
@@ -185,204 +210,241 @@ void shmem_iget64(void *target, const void *source, ptrdiff_t tst,
 void shmem_iget128(void *target, const void *source, ptrdiff_t tst,
                    ptrdiff_t sst, size_t len, int pe);
 
-/* 8.12: Atomic Memory fetch-and-operate Routines -- Swap */
+/* 8.4: Nonblocking remote memory access routines -- Put */
+void shmem_float_put_nbi(float *dest, const float *source, size_t nelems,
+                         int pe);
+void shmem_double_put_nbi(double *dest, const double *source, size_t nelems,
+                          int pe);
+void shmem_longdouble_put_nbi(long double *dest, const long double *source,
+                              size_t nelems, int pe);
+void shmem_putmem_nbi(void *dest, const void *source, size_t nelems, int pe);
+void shmem_char_put_nbi(char *dest, const char *source, size_t nelems, int pe);
+void shmem_short_put_nbi(short *dest, const short *source, size_t nelems,
+                         int pe);
+void shmem_int_put_nbi(int *dest, const int *source, size_t nelems, int pe);
+void shmem_long_put_nbi(long *dest, const long *source, size_t nelems, int pe);
+void shmem_longlong_put_nbi(long long *dest, const long long *source,
+                            size_t nelems, int pe);
+void shmem_put8_nbi(void *dest, const void *source, size_t nelems, int pe);
+void shmem_put16_nbi(void *dest, const void *source, size_t nelems, int pe);
+void shmem_put32_nbi(void *dest, const void *source, size_t nelems, int pe);
+void shmem_put64_nbi(void *dest, const void *source, size_t nelems, int pe);
+void shmem_put128_nbi(void *dest, const void *source, size_t nelems, int pe);
+
+/* 8.4: Nonblocking remote memory access routines -- Get */
+void shmem_float_get_nbi(float *dest, const float *source, size_t nelems,
+                         int pe);
+void shmem_double_get_nbi(double *dest, const double *source, size_t nelems,
+                          int pe);
+void shmem_longdouble_get_nbi(long double *dest, const long double *source,
+                              size_t nelems, int pe);
+void shmem_getmem_nbi(void *dest, const void *source, size_t nelems, int pe);
+void shmem_char_get_nbi(char *dest, const char *source, size_t nelems, int pe);
+void shmem_short_get_nbi(short *dest, const short *source, size_t nelems,
+                         int pe);
+void shmem_int_get_nbi(int *dest, const int *source, size_t nelems, int pe);
+void shmem_long_get_nbi(long *dest, const long *source, size_t nelems, int pe);
+void shmem_longlong_get_nbi(long long *dest, const long long *source,
+                            size_t nelems, int pe);
+void shmem_get8_nbi(void *dest, const void *source, size_t nelems, int pe);
+void shmem_get16_nbi(void *dest, const void *source, size_t nelems, int pe);
+void shmem_get32_nbi(void *dest, const void *source, size_t nelems, int pe);
+void shmem_get64_nbi(void *dest, const void *source, size_t nelems, int pe);
+void shmem_get128_nbi(void *dest, const void *source, size_t nelems, int pe);
+
+/* 8.4: Atomic Memory fetch-and-operate Routines -- Swap */
 float shmem_float_swap(float *target, float value, int pe);
 double shmem_double_swap(double *target, double value, int pe);
 int shmem_int_swap(int *target, int value, int pe);
 long shmem_long_swap(long *target, long value, int pe);
 long long shmem_longlong_swap(long long *target, long long value, int pe);
-long shmem_swap(long *target, long value, int pe);
 
-/* 8.12: Atomic Memory fetch-and-operate Routines -- Cswap */
+/* 8.4: Atomic Memory fetch-and-operate Routines -- Cswap */
 int shmem_int_cswap(int *target, int cond, int value, int pe);
 long shmem_long_cswap(long *target, long cond, long value, int pe);
-long long shmem_longlong_cswap(long long * target, long long cond, 
+long long shmem_longlong_cswap(long long * target, long long cond,
                           long long value, int pe);
 
-/* 8.12: Atomic Memory fetch-and-operate Routines -- Fetch and Add */
+/* 8.4: Atomic Memory fetch-and-operate Routines -- Fetch and Add */
 int shmem_int_fadd(int *target, int value, int pe);
 long shmem_long_fadd(long *target, long value, int pe);
 long long shmem_longlong_fadd(long long *target, long long value, int pe);
 
-/* 8.12: Atomic Memory fetch-and-operate Routines -- Fetch and Increment */
+/* 8.4: Atomic Memory fetch-and-operate Routines -- Fetch and Increment */
 int shmem_int_finc(int *target, int pe);
 long shmem_long_finc(long *target, int pe);
 long long shmem_longlong_finc(long long *target, int pe);
 
-/* 8.13: Atomic Memory Operation Routines -- Add */
+/* 8.4: Atomic Memory Operation Routines -- Add */
 void shmem_int_add(int *target, int value, int pe);
 void shmem_long_add(long *target, long value, int pe);
 void shmem_longlong_add(long long *target, long long value, int pe);
 
-/* 8.13: Atomic Memory Operation Routines -- Increment */
+/* 8.4: Atomic Memory Operation Routines -- Increment */
 void shmem_int_inc(int *target, int pe);
 void shmem_long_inc(long *target, int pe);
 void shmem_longlong_inc(long long *target, int pe);
 
-/* 8.14: Point-to-Point Synchronization Routines -- Wait*/
-void shmem_short_wait(short *var, short value);
-void shmem_int_wait(int *var, int value);
-void shmem_long_wait(long *var, long value);
-void shmem_longlong_wait(long long *var, long long value);
-void shmem_wait(long *ivar, long cmp_value);
+/* 8.4: Atomic fetch */
+int shmem_int_fetch(const int *source, int pe);
+long shmem_long_fetch(const long *source, int pe);
+long long shmem_longlong_fetch(const long long *source, int pe);
+float shmem_float_fetch(const float *source, int pe);
+double shmem_double_fetch(const double *source, int pe);
 
-/* 8.14: Point-to-Point Synchronization Routines -- Wait Until*/
-void shmem_short_wait_until(short *var, int cond, short value);
-void shmem_int_wait_until(int *var, int cond, int value);
-void shmem_long_wait_until(long *var, int cond, long value);
-void shmem_longlong_wait_until(long long *var, int cond,
-                               long long value);
-void shmem_wait_until(long *ivar, int cmp, long value);
+/* 8.4: Atomic set */
+void shmem_int_set(int *dest, int value, int pe);
+void shmem_long_set(long *dest, long value, int pe);
+void shmem_longlong_set(long long *dest, long long value, int pe);
+void shmem_float_set(float *dest, float value, int pe);
+void shmem_double_set(double *dest, double value, int pe);
 
-/* 8.15: Barrier Synchronization Routines */
+/* 8.5: Barrier Synchronization Routines */
 void shmem_barrier(int PE_start, int logPE_stride, int PE_size, long *pSync);
 void shmem_barrier_all(void);
 
-void shmem_quiet(void);
-void shmem_fence(void);
-
-/* 8.16: Reduction Routines */
-void shmem_short_and_to_all(short *target, short *source, int nreduce,
+/* 8.5: Reduction Routines */
+void shmem_short_and_to_all(short *target, OSHMPI_CONST short *source, int nreduce,
                             int PE_start, int logPE_stride, int PE_size,
                             short *pWrk, long *pSync);
-void shmem_int_and_to_all(int *target, int *source, int nreduce,
+void shmem_int_and_to_all(int *target, OSHMPI_CONST int *source, int nreduce,
                           int PE_start, int logPE_stride, int PE_size,
                           int *pWrk, long *pSync);
-void shmem_long_and_to_all(long *target, long *source, int nreduce,
+void shmem_long_and_to_all(long *target, OSHMPI_CONST long *source, int nreduce,
                            int PE_start, int logPE_stride, int PE_size,
                            long *pWrk, long *pSync);
-void shmem_longlong_and_to_all(long long *target, long long *source,
+void shmem_longlong_and_to_all(long long *target, OSHMPI_CONST long long *source,
                                int nreduce, int PE_start, int logPE_stride,
                                int PE_size, long long *pWrk, long *pSync);
 
-void shmem_short_or_to_all(short *target, short *source, int nreduce, 
-                           int PE_start, int logPE_stride, int PE_size, 
+void shmem_short_or_to_all(short *target, OSHMPI_CONST short *source, int nreduce,
+                           int PE_start, int logPE_stride, int PE_size,
                            short *pWrk, long *pSync);
-void shmem_int_or_to_all(int *target, int *source, int nreduce, 
-                         int PE_start, int logPE_stride, int PE_size, 
+void shmem_int_or_to_all(int *target, OSHMPI_CONST int *source, int nreduce,
+                         int PE_start, int logPE_stride, int PE_size,
                          int *pWrk, long *pSync);
-void shmem_long_or_to_all(long *target, long *source, int nreduce,
-                          int PE_start, int logPE_stride, int PE_size, 
+void shmem_long_or_to_all(long *target, OSHMPI_CONST long *source, int nreduce,
+                          int PE_start, int logPE_stride, int PE_size,
                           long *pWrk, long *pSync);
-void shmem_longlong_or_to_all(long long *target, long long *source,
+void shmem_longlong_or_to_all(long long *target, OSHMPI_CONST long long *source,
                               int nreduce, int PE_start, int logPE_stride,
                               int PE_size, long long *pWrk, long *pSync);
 
-void shmem_short_xor_to_all(short *target, short *source, int nreduce,
-                            int PE_start, int logPE_stride, int PE_size, 
-                            short *pWrk, long *pSync);
-void shmem_int_xor_to_all(int *target, int *source, int nreduce, 
-                          int PE_start, int logPE_stride, int PE_size, 
-                          int *pWrk, long *pSync);
-void shmem_long_xor_to_all(long *target, long *source, int nreduce,
-                           int PE_start, int logPE_stride, int PE_size, 
-                           long *pWrk, long *pSync);
-void shmem_longlong_xor_to_all(long long *target, long long *source,
-                               int nreduce, int PE_start, int logPE_stride,
-                               int PE_size, long long *pWrk, long *pSync);
-
-void shmem_float_min_to_all(float *target, float *source, int nreduce, 
-                            int PE_start, int logPE_stride, int PE_size, 
-                            float *pWrk, long *pSync);
-void shmem_double_min_to_all(double *target, double *source, int nreduce,
-                             int PE_start, int logPE_stride, int PE_size, 
-                             double *pWrk, long *pSync);
-void shmem_longdouble_min_to_all(long double *target, long double *source,
-                                 int nreduce, int PE_start, int logPE_stride,
-                                 int PE_size, long double *pWrk, long *pSync);
-void shmem_short_min_to_all(short *target, short *source, int nreduce, 
-                            int PE_start, int logPE_stride, int PE_size, 
-                            short *pWrk, long *pSync);
-void shmem_int_min_to_all(int *target, int *source, int nreduce, 
-                          int PE_start, int logPE_stride, int PE_size, 
-                          int *pWrk, long *pSync);
-void shmem_long_min_to_all(long *target, long *source, int nreduce,
-                           int PE_start, int logPE_stride, int PE_size, 
-                           long *pWrk, long *pSync);
-void shmem_longlong_min_to_all(long long *target, long long *source,
-                               int nreduce, int PE_start, int logPE_stride,
-                               int PE_size, long long *pWrk, long *pSync);
-
-void shmem_float_max_to_all(float *target, float *source, int nreduce,
-                            int PE_start, int logPE_stride, int PE_size,
-                            float *pWrk, long *pSync);
-void shmem_double_max_to_all(double *target, double *source, int nreduce,
-                             int PE_start, int logPE_stride, int PE_size,
-                             double *pWrk, long *pSync);
-void shmem_longdouble_max_to_all(long double *target, long double *source,
-                                 int nreduce, int PE_start, int logPE_stride,
-                                 int PE_size, long double *pWrk, long *pSync);
-void shmem_short_max_to_all(short *target, short *source, int nreduce,
+void shmem_short_xor_to_all(short *target, OSHMPI_CONST short *source, int nreduce,
                             int PE_start, int logPE_stride, int PE_size,
                             short *pWrk, long *pSync);
-void shmem_int_max_to_all(int *target, int *source, int nreduce,
+void shmem_int_xor_to_all(int *target, OSHMPI_CONST int *source, int nreduce,
                           int PE_start, int logPE_stride, int PE_size,
                           int *pWrk, long *pSync);
-void shmem_long_max_to_all(long *target, long *source, int nreduce,
+void shmem_long_xor_to_all(long *target, OSHMPI_CONST long *source, int nreduce,
                            int PE_start, int logPE_stride, int PE_size,
                            long *pWrk, long *pSync);
-void shmem_longlong_max_to_all(long long *target, long long *source,
+void shmem_longlong_xor_to_all(long long *target, OSHMPI_CONST long long *source,
                                int nreduce, int PE_start, int logPE_stride,
                                int PE_size, long long *pWrk, long *pSync);
 
-void shmem_float_sum_to_all(float *target, float *source, int nreduce,
-                            int PE_start, int logPE_stride, int PE_size, 
+void shmem_float_min_to_all(float *target, OSHMPI_CONST float *source, int nreduce,
+                            int PE_start, int logPE_stride, int PE_size,
                             float *pWrk, long *pSync);
-void shmem_double_sum_to_all(double *target, double *source, int nreduce, 
-                             int PE_start, int logPE_stride, int PE_size, 
+void shmem_double_min_to_all(double *target, OSHMPI_CONST double *source, int nreduce,
+                             int PE_start, int logPE_stride, int PE_size,
                              double *pWrk, long *pSync);
-void shmem_longdouble_sum_to_all(long double *target, long double *source,
+void shmem_longdouble_min_to_all(long double *target, OSHMPI_CONST long double *source,
                                  int nreduce, int PE_start, int logPE_stride,
                                  int PE_size, long double *pWrk, long *pSync);
-void shmem_complexf_sum_to_all(float complex *target, float complex *source,
-                               int nreduce, int PE_start, int logPE_stride,
-                               int PE_size, float complex *pWrk, long *pSync);
-void shmem_complexd_sum_to_all(double complex *target, double complex *source,
-                               int nreduce, int PE_start, int logPE_stride,
-                               int PE_size, double complex *pWrk, long *pSync);
-void shmem_short_sum_to_all(short *target, short *source, int nreduce, 
-                            int PE_start, int logPE_stride, int PE_size, 
+void shmem_short_min_to_all(short *target, OSHMPI_CONST short *source, int nreduce,
+                            int PE_start, int logPE_stride, int PE_size,
                             short *pWrk, long *pSync);
-void shmem_int_sum_to_all(int *target, int *source, int nreduce, 
-                          int PE_start, int logPE_stride, int PE_size, 
+void shmem_int_min_to_all(int *target, OSHMPI_CONST int *source, int nreduce,
+                          int PE_start, int logPE_stride, int PE_size,
                           int *pWrk, long *pSync);
-void shmem_long_sum_to_all(long *target, long *source, int nreduce,
-                           int PE_start, int logPE_stride, int PE_size, 
+void shmem_long_min_to_all(long *target, OSHMPI_CONST long *source, int nreduce,
+                           int PE_start, int logPE_stride, int PE_size,
                            long *pWrk, long *pSync);
-void shmem_longlong_sum_to_all(long long *target, long long *source,
+void shmem_longlong_min_to_all(long long *target, OSHMPI_CONST long long *source,
                                int nreduce, int PE_start, int logPE_stride,
                                int PE_size, long long *pWrk, long *pSync);
 
-void shmem_float_prod_to_all(float *target, float *source, int nreduce, 
-                             int PE_start, int logPE_stride, int PE_size, 
+void shmem_float_max_to_all(float *target, OSHMPI_CONST float *source, int nreduce,
+                            int PE_start, int logPE_stride, int PE_size,
+                            float *pWrk, long *pSync);
+void shmem_double_max_to_all(double *target, OSHMPI_CONST double *source, int nreduce,
+                             int PE_start, int logPE_stride, int PE_size,
+                             double *pWrk, long *pSync);
+void shmem_longdouble_max_to_all(long double *target, OSHMPI_CONST long double *source,
+                                 int nreduce, int PE_start, int logPE_stride,
+                                 int PE_size, long double *pWrk, long *pSync);
+void shmem_short_max_to_all(short *target, OSHMPI_CONST short *source, int nreduce,
+                            int PE_start, int logPE_stride, int PE_size,
+                            short *pWrk, long *pSync);
+void shmem_int_max_to_all(int *target, OSHMPI_CONST int *source, int nreduce,
+                          int PE_start, int logPE_stride, int PE_size,
+                          int *pWrk, long *pSync);
+void shmem_long_max_to_all(long *target, OSHMPI_CONST long *source, int nreduce,
+                           int PE_start, int logPE_stride, int PE_size,
+                           long *pWrk, long *pSync);
+void shmem_longlong_max_to_all(long long *target, OSHMPI_CONST long long *source,
+                               int nreduce, int PE_start, int logPE_stride,
+                               int PE_size, long long *pWrk, long *pSync);
+
+void shmem_float_sum_to_all(float *target, OSHMPI_CONST float *source, int nreduce,
+                            int PE_start, int logPE_stride, int PE_size,
+                            float *pWrk, long *pSync);
+void shmem_double_sum_to_all(double *target, OSHMPI_CONST double *source, int nreduce,
+                             int PE_start, int logPE_stride, int PE_size,
+                             double *pWrk, long *pSync);
+void shmem_longdouble_sum_to_all(long double *target, OSHMPI_CONST long double *source,
+                                 int nreduce, int PE_start, int logPE_stride,
+                                 int PE_size, long double *pWrk, long *pSync);
+void shmem_complexf_sum_to_all(float complex *target, OSHMPI_CONST float complex *source,
+                               int nreduce, int PE_start, int logPE_stride,
+                               int PE_size, float complex *pWrk, long *pSync);
+void shmem_complexd_sum_to_all(double complex *target, OSHMPI_CONST double complex *source,
+                               int nreduce, int PE_start, int logPE_stride,
+                               int PE_size, double complex *pWrk, long *pSync);
+void shmem_short_sum_to_all(short *target, OSHMPI_CONST short *source, int nreduce,
+                            int PE_start, int logPE_stride, int PE_size,
+                            short *pWrk, long *pSync);
+void shmem_int_sum_to_all(int *target, OSHMPI_CONST int *source, int nreduce,
+                          int PE_start, int logPE_stride, int PE_size,
+                          int *pWrk, long *pSync);
+void shmem_long_sum_to_all(long *target, OSHMPI_CONST long *source, int nreduce,
+                           int PE_start, int logPE_stride, int PE_size,
+                           long *pWrk, long *pSync);
+void shmem_longlong_sum_to_all(long long *target, OSHMPI_CONST long long *source,
+                               int nreduce, int PE_start, int logPE_stride,
+                               int PE_size, long long *pWrk, long *pSync);
+
+void shmem_float_prod_to_all(float *target, OSHMPI_CONST float *source, int nreduce,
+                             int PE_start, int logPE_stride, int PE_size,
                              float *pWrk, long *pSync);
-void shmem_double_prod_to_all(double *target, double *source, int nreduce, 
+void shmem_double_prod_to_all(double *target, OSHMPI_CONST double *source, int nreduce,
                               int PE_start, int logPE_stride, int PE_size,
                               double *pWrk, long *pSync);
-void shmem_longdouble_prod_to_all(long double *target, long double *source,
+void shmem_longdouble_prod_to_all(long double *target, OSHMPI_CONST long double *source,
                                   int nreduce, int PE_start, int logPE_stride,
                                   int PE_size, long double *pWrk, long *pSync);
-void shmem_complexf_prod_to_all(float complex *target, float complex *source,
+void shmem_complexf_prod_to_all(float complex *target, OSHMPI_CONST float complex *source,
                                 int nreduce, int PE_start, int logPE_stride,
                                 int PE_size, float complex *pWrk, long *pSync);
-void shmem_complexd_prod_to_all(double complex *target, 
-                                double complex *source, int nreduce, 
-                                int PE_start, int logPE_stride, int PE_size, 
+void shmem_complexd_prod_to_all(double complex *target,
+                                OSHMPI_CONST double complex *source, int nreduce,
+                                int PE_start, int logPE_stride, int PE_size,
                                 double complex *pWrk, long *pSync);
-void shmem_short_prod_to_all(short *target, short *source, int nreduce, 
-                             int PE_start, int logPE_stride, int PE_size, 
+void shmem_short_prod_to_all(short *target, OSHMPI_CONST short *source, int nreduce,
+                             int PE_start, int logPE_stride, int PE_size,
                              short *pWrk, long *pSync);
-void shmem_int_prod_to_all(int *target, int *source, int nreduce,
-                           int PE_start, int logPE_stride, int PE_size, 
+void shmem_int_prod_to_all(int *target, OSHMPI_CONST int *source, int nreduce,
+                           int PE_start, int logPE_stride, int PE_size,
                            int *pWrk, long *pSync);
-void shmem_long_prod_to_all(long *target, long *source, int nreduce,
-                            int PE_start, int logPE_stride, int PE_size, 
+void shmem_long_prod_to_all(long *target, OSHMPI_CONST long *source, int nreduce,
+                            int PE_start, int logPE_stride, int PE_size,
                             long *pWrk, long *pSync);
-void shmem_longlong_prod_to_all(long long *target, long long *source,
+void shmem_longlong_prod_to_all(long long *target, OSHMPI_CONST long long *source,
                                 int nreduce, int PE_start, int logPE_stride,
                                 int PE_size, long long *pWrk, long *pSync);
 
-/* 8.17: Collect Routines */
+/* 8.5: Collect Routines */
 void shmem_collect32(void *target, const void *source, size_t nlong,
                      int PE_start, int logPE_stride, int PE_size, long *pSync);
 void shmem_collect64(void *target, const void *source, size_t nlong,
@@ -394,26 +456,248 @@ void shmem_fcollect64(void *target, const void *source, size_t nlong,
                       int PE_start, int logPE_stride, int PE_size,
                       long *pSync);
 
-/* 8.18: Broadcast Routines */
-void shmem_broadcast32(void *target, const void *source, size_t nlong, 
+/* 8.5: Broadcast Routines */
+void shmem_broadcast32(void *target, const void *source, size_t nlong,
                        int PE_root, int PE_start, int logPE_stride,
                        int PE_size, long *pSync);
 void shmem_broadcast64(void *target, const void *source, size_t nlong,
                        int PE_root, int PE_start, int logPE_stride,
                        int PE_size, long *pSync);
 
-/* 8.19: Lock Routines */
-void shmem_set_lock(long *lock);
-void shmem_clear_lock(long *lock);
-int shmem_test_lock(long *lock);
+/* 8.6: All-to-all routines */
+void shmem_alltoall32(void *dest, const void *source, size_t nelems, int PE_start,
+                      int logPE_stride, int PE_size, long *pSync);
+void shmem_alltoall64(void *dest, const void *source, size_t nelems, int PE_start,
+                      int logPE_stride, int PE_size, long *pSync);
 
-/* A.1: Cache Management Routines (deprecated) */
+void shmem_alltoalls32(void *dest, const void *source, ptrdiff_t dst,
+                       ptrdiff_t sst, size_t nelems, int PE_start,
+                       int logPE_stride, int PE_size, long *pSync);
+void shmem_alltoalls64(void *dest, const void *source, ptrdiff_t dst,
+                       ptrdiff_t sst, size_t nelems, int PE_start,
+                       int logPE_stride, int PE_size, long *pSync);
+
+/* 8.6: Point-to-Point Synchronization Routines -- Wait */
+void shmem_short_wait(OSHMPI_VOLATILE short *var, short value);
+void shmem_int_wait(OSHMPI_VOLATILE int *var, int value);
+void shmem_long_wait(OSHMPI_VOLATILE long *var, long value);
+void shmem_longlong_wait(OSHMPI_VOLATILE long long *var, long long value);
+void shmem_wait(OSHMPI_VOLATILE long *ivar, long cmp_value);
+
+/* 8.6: Point-to-Point Synchronization Routines -- Wait Until */
+void shmem_short_wait_until(OSHMPI_VOLATILE short *var, int cond, short value);
+void shmem_int_wait_until(OSHMPI_VOLATILE int *var, int cond, int value);
+void shmem_long_wait_until(OSHMPI_VOLATILE long *var, int cond, long value);
+void shmem_longlong_wait_until(OSHMPI_VOLATILE long long *var, int cond,
+                               long long value);
+void shmem_wait_until(OSHMPI_VOLATILE long *ivar, int cmp, long value);
+
+/* 8.7: Memory Ordering Routines */
+void shmem_quiet(void);
+void shmem_fence(void);
+
+/* 8.8: Lock Routines */
+void shmem_set_lock(OSHMPI_VOLATILE long *lock);
+void shmem_clear_lock(OSHMPI_VOLATILE long *lock);
+int shmem_test_lock(OSHMPI_VOLATILE long *lock);
+
+/* 8.9: Cache Management Routines (deprecated) */
 void shmem_set_cache_inv(void) __attribute__ ((deprecated));
 void shmem_set_cache_line_inv(void *target) __attribute__ ((deprecated));
 void shmem_clear_cache_inv(void) __attribute__ ((deprecated));
 void shmem_clear_cache_line_inv(void *target) __attribute__ ((deprecated));
 void shmem_udcflush(void) __attribute__ ((deprecated));
 void shmem_udcflush_line(void *target) __attribute__ ((deprecated));
+
+/* F: Deprecated API */
+int _num_pes(void) OSHMPI_DEPRECATED;
+int _my_pe(void) OSHMPI_DEPRECATED;
+void *shmalloc(size_t size) OSHMPI_DEPRECATED;
+void *shmemalign(size_t alignment, size_t size) OSHMPI_DEPRECATED;
+void *shrealloc(void *ptr, size_t size) OSHMPI_DEPRECATED;
+void shfree(void *ptr) OSHMPI_DEPRECATED;
+void start_pes(int npes) OSHMPI_DEPRECATED;
+
+/* C11 Generic Macros */
+#if (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(SHMEM_INTERNAL_INCLUDE))
+#include <stdint.h>
+
+/* Blocking block, scalar, and block-strided put */
+#define shmem_put(dest, source, nelems, pe)                     \
+    _Generic(&(dest)[0],                                        \
+             float*:            shmem_float_put,                \
+             double*:           shmem_double_put,               \
+             long double*:      shmem_longdouble_put,           \
+             char*:             shmem_char_put,                 \
+             short*:            shmem_short_put,                \
+             int*:              shmem_int_put,                  \
+             long*:             shmem_long_put,                 \
+             long long*:        shmem_longlong_put              \
+            )(dest, source, nelems, pe)
+
+#define shmem_p(dest, source, pe)                               \
+    _Generic(&(dest)[0],                                        \
+             float*:            shmem_float_p,                  \
+             double*:           shmem_double_p,                 \
+             long double*:      shmem_longdouble_p,             \
+             char*:             shmem_char_p,                   \
+             short*:            shmem_short_p,                  \
+             int*:              shmem_int_p,                    \
+             long*:             shmem_long_p,                   \
+             long long*:        shmem_longlong_p                \
+            )(dest, source, pe)
+
+#define shmem_iput(dest, source, dst, sst, nelems, pe)          \
+    _Generic(&(dest)[0],                                        \
+             float*:            shmem_float_iput,               \
+             double*:           shmem_double_iput,              \
+             long double*:      shmem_longdouble_iput,          \
+             char*:             shmem_char_iput,                \
+             short*:            shmem_short_iput,               \
+             int*:              shmem_int_iput,                 \
+             long*:             shmem_long_iput,                \
+             long long*:        shmem_longlong_iput             \
+            )(dest, source, dst, sst, nelems, pe)
+
+/* Blocking block, scalar, and block-strided get */
+#define shmem_get(dest, source, nelems, pe)                     \
+    _Generic(&(dest)[0],                                        \
+             float*:            shmem_float_get,                \
+             double*:           shmem_double_get,               \
+             long double*:      shmem_longdouble_get,           \
+             char*:             shmem_char_get,                 \
+             short*:            shmem_short_get,                \
+             int*:              shmem_int_get,                  \
+             long*:             shmem_long_get,                 \
+             long long*:        shmem_longlong_get              \
+            )(dest, source, nelems, pe)
+
+#define shmem_g(dest, pe)                                       \
+    _Generic(&(dest)[0],                                        \
+             float*:            shmem_float_g,                  \
+             double*:           shmem_double_g,                 \
+             long double*:      shmem_longdouble_g,             \
+             char*:             shmem_char_g,                   \
+             short*:            shmem_short_g,                  \
+             int*:              shmem_int_g,                    \
+             long*:             shmem_long_g,                   \
+             long long*:        shmem_longlong_g                \
+            )(dest, pe)
+
+#define shmem_iget(dest, source, dst, sst, nelems, pe)          \
+    _Generic(&(dest)[0],                                        \
+             float*:            shmem_float_iget,               \
+             double*:           shmem_double_iget,              \
+             long double*:      shmem_longdouble_iget,          \
+             char*:             shmem_char_iget,                \
+             short*:            shmem_short_iget,               \
+             int*:              shmem_int_iget,                 \
+             long*:             shmem_long_iget,                \
+             long long*:        shmem_longlong_iget             \
+            )(dest, source, dst, sst, nelems, pe)
+
+/* Nonblocking block put/get */
+#define shmem_put_nbi(dest, source, nelems, pe)                 \
+    _Generic(&(dest)[0],                                        \
+             float*:            shmem_float_put_nbi,            \
+             double*:           shmem_double_put_nbi,           \
+             long double*:      shmem_longdouble_put_nbi,       \
+             char*:             shmem_char_put_nbi,             \
+             short*:            shmem_short_put_nbi,            \
+             int*:              shmem_int_put_nbi,              \
+             long*:             shmem_long_put_nbi,             \
+             long long*:        shmem_longlong_put_nbi          \
+            )(dest, source, nelems, pe)
+
+#define shmem_get_nbi(dest, source, nelems, pe)                 \
+    _Generic(&(dest)[0],                                        \
+             float*:            shmem_float_get_nbi,            \
+             double*:           shmem_double_get_nbi,           \
+             long double*:      shmem_longdouble_get_nbi,       \
+             char*:             shmem_char_get_nbi,             \
+             short*:            shmem_short_get_nbi,            \
+             int*:              shmem_int_get_nbi,              \
+             long*:             shmem_long_get_nbi,             \
+             long long*:        shmem_longlong_get_nbi          \
+            )(dest, source, nelems, pe)
+
+/* Atomics with standard AMO types */
+#define shmem_add(dest, value, pe)                              \
+    _Generic(&(dest)[0],                                        \
+             int*:              shmem_int_add,                  \
+             long*:             shmem_long_add,                 \
+             long long*:        shmem_longlong_add              \
+            )(dest, value, pe)
+
+#define shmem_cswap(dest, cond, value, pe)                      \
+    _Generic(&(dest)[0],                                        \
+             int*:              shmem_int_cswap,                \
+             long*:             shmem_long_cswap,               \
+             long long*:        shmem_longlong_cswap            \
+            )(dest, cond, value, pe)
+
+#define shmem_finc(dest, pe)                                    \
+    _Generic(&(dest)[0],                                        \
+             int*:              shmem_int_finc,                 \
+             long*:             shmem_long_finc,                \
+             long long*:        shmem_longlong_finc             \
+            )(dest, pe)
+
+#define shmem_inc(dest, pe)                                     \
+    _Generic(&(dest)[0],                                        \
+             int*:              shmem_int_inc,                  \
+             long*:             shmem_long_inc,                 \
+             long long*:        shmem_longlong_inc              \
+            )(dest, pe)
+
+#define shmem_fadd(dest, value, pe)                             \
+    _Generic(&(dest)[0],                                        \
+             int*:              shmem_int_fadd,                 \
+             long*:             shmem_long_fadd,                \
+             long long*:        shmem_longlong_fadd             \
+            )(dest, value, pe)
+
+/* Atomics with extended AMO types */
+#define shmem_swap(dest, value, pe)                             \
+    _Generic(&(dest)[0],                                        \
+             float*:            shmem_float_swap,               \
+             double*:           shmem_double_swap,              \
+             int*:              shmem_int_swap,                 \
+             long*:             shmem_long_swap,                \
+             long long*:        shmem_longlong_swap             \
+            )(dest, value, pe)
+
+#define shmem_fetch(source, pe)                                 \
+    _Generic(&(source)[0],                                      \
+             float*:            shmem_float_fetch,              \
+             double*:           shmem_double_fetch,             \
+             int*:              shmem_int_fetch,                \
+             long*:             shmem_long_fetch,               \
+             long long*:        shmem_longlong_fetch            \
+            )(source, pe)
+
+#define shmem_set(dest, value, pe)                              \
+    _Generic(&(dest)[0],                                        \
+             float*:            shmem_float_set,                \
+             double*:           shmem_double_set,               \
+             int*:              shmem_int_set,                  \
+             long*:             shmem_long_set,                 \
+             long long*:        shmem_longlong_set              \
+            )(dest, value, pe)
+#else
+long shmem_swap(long *target, long value, int pe);
+#endif /* C11 */
+
+/* extensions? */
+void shmem_complexf_put(float complex * target,
+                        const float complex * source, size_t nelems, int pe);
+void shmem_complexd_put(double complex * target,
+                        const double complex * source, size_t nelems, int pe);
+
+void shmem_complexf_get(float complex * target,
+                        const float complex * source, size_t nelems, int pe);
+void shmem_complexd_get(double complex * target,
+                        const double complex * source, size_t nelems, int pe);
 
  /* Portals extensions */
 double shmem_wtime(void);

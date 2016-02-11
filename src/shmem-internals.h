@@ -83,7 +83,7 @@ shmem_comm_t * comm_cache;
 /*****************************************************************/
 
 enum shmem_window_id_e { SHMEM_SHEAP_WINDOW = 0, SHMEM_ETEXT_WINDOW = 1, SHMEM_INVALID_WINDOW = -1 };
-enum shmem_coll_type_e { SHMEM_BARRIER = 0, SHMEM_BROADCAST = 1, SHMEM_ALLREDUCE = 2, SHMEM_FCOLLECT = 4, SHMEM_COLLECT = 8};
+enum shmem_coll_type_e { SHMEM_BARRIER = 0, SHMEM_BROADCAST = 1, SHMEM_ALLREDUCE = 2, SHMEM_FCOLLECT = 4, SHMEM_COLLECT = 8, SHMEM_ALLTOALL = 16, SHMEM_ALLTOALLS = 32 };
 
 /*****************************************************************/
 
@@ -106,11 +106,13 @@ void oshmpi_local_sync(void);
 void oshmpi_remote_sync_pe(int);
 
 /* return 0 on successful lookup, otherwise 1 */
-int oshmpi_window_offset(const void *address, const int pe,
-                         enum shmem_window_id_e * win_id, shmem_offset_t * win_offset);     
+int oshmpi_window_offset(const OSHMPI_VOLATILE void *address, const int pe,
+                         enum shmem_window_id_e * win_id, shmem_offset_t * win_offset);
 
 void oshmpi_put(MPI_Datatype mpi_type, void *target, const void *source, size_t len, int pe);
 void oshmpi_get(MPI_Datatype mpi_type, void *target, const void *source, size_t len, int pe);
+void oshmpi_put_nbi(MPI_Datatype mpi_type, void *target, const void *source, size_t len, int pe);
+void oshmpi_get_nbi(MPI_Datatype mpi_type, void *target, const void *source, size_t len, int pe);
 void oshmpi_put_strided(MPI_Datatype mpi_type, void *target, const void *source, 
                         ptrdiff_t target_ptrdiff, ptrdiff_t source_ptrdiff, size_t len, int pe);
 void oshmpi_get_strided(MPI_Datatype mpi_type, void *target, const void *source, 
@@ -120,6 +122,8 @@ void oshmpi_swap(MPI_Datatype mpi_type, void *output, void *remote, const void *
 void oshmpi_cswap(MPI_Datatype mpi_type, void *output, void *remote, const void *input, const void *compare, int pe);
 void oshmpi_add(MPI_Datatype mpi_type, void *remote, const void *input, int pe);
 void oshmpi_fadd(MPI_Datatype mpi_type, void *output, void *remote, const void *input, int pe);
+void oshmpi_fetch(MPI_Datatype mpi_type, void *output, OSHMPI_CONST void *remote, int pe);
+void oshmpi_set(MPI_Datatype mpi_type, void *remote, const void *input, int pe);
 
 void oshmpi_create_comm(int pe_start, int log_pe_stride, int pe_size,
                         MPI_Comm * comm, MPI_Group * strided_group);
@@ -131,7 +135,9 @@ static inline void oshmpi_set_psync(int count, long value, long * pSync)
 }
 
 void oshmpi_coll(enum shmem_coll_type_e coll, MPI_Datatype mpi_type, MPI_Op reduce_op,
-                 void * target, const void * source, size_t len, 
+                 void * target, const void * source,
+                 ptrdiff_t target_ptrdiff, ptrdiff_t source_ptrdiff,
+                 size_t len,
                  int pe_root, int pe_start, int log_pe_stride, int pe_size);
 
 #endif // SHMEM_INTERNALS_H
