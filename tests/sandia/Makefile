@@ -28,7 +28,7 @@ all: $(TESTS)
 	$(OSHCC) $(CFLAGS) $< -o $@
 
 check: $(TESTS)
-	for test in $(TESTS) ; do $(OSHRUN) -n 2 ./$${test} | tee $${test}.log ; done
+	for test in $(TESTS) ; do echo "======= $${test} =======" ; $(OSHRUN) -n 2 ./$${test} | tee $${test}.log ; done
 
 clean:
 	-rm -f *.o
