@@ -494,9 +494,9 @@ void oshmpi_local_sync(void)
 }
 
 /* return 0 on successful lookup, otherwise 1 */
-int oshmpi_window_offset(const void *address, const int pe, /* IN  */
-                          enum shmem_window_id_e * win_id,   /* OUT */
-                          shmem_offset_t * win_offset)       /* OUT */
+int oshmpi_window_offset(const OSHMPI_VOLATILE void *address, const int pe, /* IN  */
+                         enum shmem_window_id_e * win_id,   /* OUT */
+                         shmem_offset_t * win_offset)       /* OUT */
 {
 #if SHMEM_DEBUG>3
     printf("[%d] oshmpi_window_offset: address=%p, pe=%d \n", shmem_world_rank, address, pe);
@@ -660,6 +660,124 @@ void oshmpi_get(MPI_Datatype mpi_type, void *target, const void *source, size_t 
     return;
 }
 
+void oshmpi_put_nbi(MPI_Datatype mpi_type, void *target, const void *source, size_t len, int pe)
+{
+    enum shmem_window_id_e win_id;
+    shmem_offset_t win_offset;
+
+#if SHMEM_DEBUG>3
+    printf("[%d] oshmpi_put_nbi: type=%d, target=%p, source=%p, len=%zu, pe=%d \n",
+            shmem_world_rank, mpi_type, target, source, len, pe);
+    fflush(stdout);
+#endif
+
+    if (oshmpi_window_offset(target, pe, &win_id, &win_offset)) {
+        oshmpi_abort(pe, "oshmpi_window_offset failed to find put target");
+    }
+
+#if SHMEM_DEBUG>3
+    printf("[%d] win_id=%d, offset=%lld \n",
+           shmem_world_rank, win_id, (long long)win_offset);
+    fflush(stdout);
+#endif
+
+    MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
+
+#ifdef ENABLE_SMP_OPTIMIZATIONS
+    if (shmem_world_is_smp && win_id==SHMEM_SHEAP_WINDOW) {
+        int type_size = OSHMPI_Type_size(mpi_type);
+        void * ptr = (void*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)target - (intptr_t)shmem_sheap_base_ptr) );
+        memcpy(ptr, source, len*type_size);
+    } else
+#endif
+    {
+        int count = 0;
+        MPI_Datatype tmp_type;
+        if ( likely(len<(size_t)INT32_MAX) ) { /* need second check if size_t is signed */
+            count = len;
+            tmp_type = mpi_type;
+        } else {
+            count = 1;
+            MPIX_Type_contiguous_x(len, mpi_type, &tmp_type);
+            MPI_Type_commit(&tmp_type);
+        }
+#ifdef ENABLE_RMA_ORDERING
+        /* ENABLE_RMA_ORDERING means "RMA operations are ordered" */
+        MPI_Accumulate(source, count, tmp_type,                   /* origin */
+                       pe, (MPI_Aint)win_offset, count, tmp_type, /* target */
+                       MPI_REPLACE,                               /* atomic, ordered Put */
+                       win);
+#else
+        MPI_Put(source, count, tmp_type,                   /* origin */
+                pe, (MPI_Aint)win_offset, count, tmp_type, /* target */
+                win);
+#endif
+        if ( unlikely(len>(size_t)INT32_MAX) ) {
+            MPI_Type_free(&tmp_type);
+        }
+    }
+    return;
+}
+
+void oshmpi_get_nbi(MPI_Datatype mpi_type, void *target, const void *source, size_t len, int pe)
+{
+    enum shmem_window_id_e win_id;
+    shmem_offset_t win_offset;
+
+#if SHMEM_DEBUG>3
+    printf("[%d] oshmpi_get_nbi: type=%d, target=%p, source=%p, len=%zu, pe=%d \n",
+            shmem_world_rank, mpi_type, target, source, len, pe);
+    fflush(stdout);
+#endif
+
+    if (oshmpi_window_offset(source, pe, &win_id, &win_offset)) {
+        oshmpi_abort(pe, "oshmpi_window_offset failed to find get source");
+    }
+
+#if SHMEM_DEBUG>3
+    printf("[%d] win_id=%d, offset=%lld \n",
+           shmem_world_rank, win_id, (long long)win_offset);
+    fflush(stdout);
+#endif
+
+    MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
+#ifdef ENABLE_SMP_OPTIMIZATIONS
+    if (shmem_world_is_smp && win_id==SHMEM_SHEAP_WINDOW) {
+        int type_size = OSHMPI_Type_size(mpi_type);
+        void * ptr = (void*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)source - (intptr_t)shmem_sheap_base_ptr) );
+        memcpy(target, ptr, len*type_size);
+    } else
+#endif
+    {
+        int count = 0;
+        MPI_Datatype tmp_type;
+        if ( likely(len<(size_t)INT32_MAX) ) { /* need second check if size_t is signed */
+            count = len;
+            tmp_type = mpi_type;
+        } else {
+            count = 1;
+            MPIX_Type_contiguous_x(len, mpi_type, &tmp_type);
+            MPI_Type_commit(&tmp_type);
+        }
+#ifdef ENABLE_RMA_ORDERING
+        /* ENABLE_RMA_ORDERING means "RMA operations are ordered" */
+        MPI_Get_accumulate(NULL, 0, MPI_DATATYPE_NULL,                /* origin */
+                           target, count, tmp_type,                   /* result */
+                           pe, (MPI_Aint)win_offset, count, tmp_type, /* remote */
+                           MPI_NO_OP,                                 /* atomic, ordered Get */
+                           win);
+#else
+        MPI_Get(target, count, tmp_type,                   /* result */
+                pe, (MPI_Aint)win_offset, count, tmp_type, /* remote */
+                win);
+#endif
+        if ( unlikely(len>(size_t)INT32_MAX) ) {
+            MPI_Type_free(&tmp_type);
+        }
+    }
+    return;
+}
+
 void oshmpi_put_strided(MPI_Datatype mpi_type, void *target, const void *source, 
                          ptrdiff_t target_ptrdiff, ptrdiff_t source_ptrdiff, size_t len, int pe)
 {
@@ -812,6 +930,96 @@ void oshmpi_get_strided(MPI_Datatype mpi_type, void *target, const void *source,
     return;
 }
 
+void oshmpi_set(MPI_Datatype mpi_type, void *remote, const void *input, int pe)
+{
+    enum shmem_window_id_e win_id;
+    shmem_offset_t win_offset;
+
+    if (oshmpi_window_offset(remote, pe, &win_id, &win_offset)) {
+        oshmpi_abort(pe, "oshmpi_window_offset failed to find set remote");
+    }
+
+    MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
+
+#ifdef ENABLE_SMP_OPTIMIZATIONS
+    if (shmem_world_is_smp && win_id==SHMEM_SHEAP_WINDOW &&
+            (mpi_type==MPI_LONG || mpi_type==MPI_INT || mpi_type==MPI_LONG_LONG /* || mpi_type==MPIFLOAT || mpi_type==MPI_DOUBLE */) ) {
+        if (mpi_type==MPI_LONG) {
+            long * ptr = (long*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
+            long tmp = __sync_lock_test_and_set(ptr,*(long*)input);
+        } else if (mpi_type==MPI_INT) {
+            int * ptr = (int*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
+            int tmp = __sync_lock_test_and_set(ptr,*(int*)input);
+        } else if (mpi_type==MPI_LONG_LONG) {
+            long long * ptr = (long long*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
+            long long tmp = __sync_lock_test_and_set(ptr,*(long long*)input);
+#if 0
+        } else if (mpi_type==MPI_FLOAT) {
+            float * ptr = (float*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
+            float tmp = __sync_lock_test_and_set(ptr,*(int*)input);
+        } else if (mpi_type==MPI_DOUBLE) {
+            double * ptr = (double*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
+            double tmp = __sync_lock_test_and_set(ptr,*(long long*)input);
+#endif
+        }
+        /* GCC intrinsics give the wrong answer for double swap so we just avoid trying. */
+    } else
+#endif
+    {
+        MPI_Accumulate(input, 1, mpi_type, pe, win_offset, 1, mpi_type, MPI_REPLACE, win);
+        MPI_Win_flush(pe, win);
+    }
+    return;
+}
+
+void oshmpi_fetch(MPI_Datatype mpi_type, void *output, OSHMPI_CONST void *remote, int pe)
+{
+    enum shmem_window_id_e win_id;
+    shmem_offset_t win_offset;
+
+    if (oshmpi_window_offset(remote, pe, &win_id, &win_offset)) {
+        oshmpi_abort(pe, "oshmpi_window_offset failed to find fadd remote");
+    }
+
+    MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
+
+#ifdef ENABLE_SMP_OPTIMIZATIONS
+    if (shmem_world_is_smp && win_id==SHMEM_SHEAP_WINDOW &&
+            (mpi_type==MPI_LONG || mpi_type==MPI_INT || mpi_type==MPI_LONG_LONG /* || mpi_type==MPIFLOAT || mpi_type==MPI_DOUBLE */) ) {
+        if (mpi_type==MPI_LONG) {
+            long * ptr = (long*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
+            long tmp = __sync_fetch_and_add(ptr,0L);
+            *(long*)output = tmp;
+        } else if (mpi_type==MPI_INT) {
+            int * ptr = (int*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
+            int tmp = __sync_fetch_and_add(ptr,0);
+            *(int*)output = tmp;
+        } else if (mpi_type==MPI_LONG_LONG) {
+            long long * ptr = (long long*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
+            long long tmp = __sync_fetch_and_add(ptr,0LL);
+            *(long long*)output = tmp;
+        /* There have been problems with float/double atomics in the past.  These need careful verification. */
+#if 0
+        } else if (mpi_type==MPI_FLOAT) {
+            float * ptr = (float*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
+            float tmp = __sync_fetch_and_or(ptr,0); /* adding 0 may change NAN bits, etc */
+            *(float*)output = tmp;
+        } else if (mpi_type==MPI_DOUBLE) {
+            double * ptr = (double*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
+            double tmp = __sync_fetch_and_or(ptr,0); /* adding 0 may change NAN bits, etc */
+            *(double*)output = tmp;
+#endif
+        } else {
+            oshmpi_abort(pe, "oshmpi_fadd: invalid datatype");
+        }
+    } else
+#endif
+    {
+        MPI_Fetch_and_op(NULL, output, mpi_type, pe, win_offset, MPI_NO_OP, win);
+        MPI_Win_flush(pe, win);
+    }
+    return;
+}
 void oshmpi_swap(MPI_Datatype mpi_type, void *output, void *remote, const void *input, int pe)
 {
     enum shmem_window_id_e win_id;
@@ -1069,7 +1277,9 @@ static inline void oshmpi_release_comm(int pe_start, int pe_logs, int pe_size, /
 }
 
 void oshmpi_coll(enum shmem_coll_type_e coll, MPI_Datatype mpi_type, MPI_Op reduce_op,
-                  void * target, const void * source, size_t len,
+                  void * target, const void * source,
+                  ptrdiff_t target_ptrdiff, ptrdiff_t source_ptrdiff, /* <--- ALLTOALLS only */
+                  size_t len,
                   int pe_root, int pe_start, int pe_logs, int pe_size)
 {
     int broot = 0;
@@ -1091,7 +1301,9 @@ void oshmpi_coll(enum shmem_coll_type_e coll, MPI_Datatype mpi_type, MPI_Op redu
 
     switch (coll) {
         case SHMEM_BARRIER:
-            MPI_Barrier( comm );
+            {
+                MPI_Barrier( comm );
+            }
             break;
         case SHMEM_BROADCAST:
             {
@@ -1103,7 +1315,9 @@ void oshmpi_coll(enum shmem_coll_type_e coll, MPI_Datatype mpi_type, MPI_Op redu
 	    }
             break;
         case SHMEM_FCOLLECT:
-            MPI_Allgather(source, count, tmp_type, target, count, tmp_type, comm);
+            {
+                MPI_Allgather(source, count, tmp_type, target, count, tmp_type, comm);
+            }
             break;
         case SHMEM_COLLECT:
             {
@@ -1119,10 +1333,43 @@ void oshmpi_coll(enum shmem_coll_type_e coll, MPI_Datatype mpi_type, MPI_Op redu
                 free(rcounts);
             }
             break;
+        case SHMEM_ALLTOALL:
+            {
+                MPI_Alltoall(source, count, tmp_type, target, count, tmp_type, comm);
+            }
+            break;
+        case SHMEM_ALLTOALLS:
+            {
+                assert( (ptrdiff_t)INT32_MIN<target_ptrdiff && target_ptrdiff<(ptrdiff_t)INT32_MAX );
+                assert( (ptrdiff_t)INT32_MIN<source_ptrdiff && source_ptrdiff<(ptrdiff_t)INT32_MAX );
+
+                int target_stride = (int) target_ptrdiff;
+                int source_stride = (int) source_ptrdiff;
+
+                MPI_Datatype source_type;
+                MPI_Type_vector(count, 1, source_stride, mpi_type, &source_type);
+                MPI_Type_commit(&source_type);
+
+                MPI_Datatype target_type;
+                if (target_stride!=source_stride) {
+                    MPI_Type_vector(count, 1, target_stride, mpi_type, &target_type);
+                    MPI_Type_commit(&target_type);
+                } else {
+                    target_type = source_type;
+                }
+                MPI_Alltoall(source, count, source_type, target, count, target_type, comm);
+                if (target_stride!=source_stride) {
+                    MPI_Type_free(&target_type);
+                }
+                MPI_Type_free(&source_type);
+            }
+            break;
         case SHMEM_ALLREDUCE:
-            /* From the OpenSHMEM 1.0 specification:
-            "[The] source and target may be the same array, but they must not be overlapping arrays." */
-            MPI_Allreduce((source==target) ? MPI_IN_PLACE : source, target, count, tmp_type, reduce_op, comm);
+            {
+                /* From the OpenSHMEM 1.0 specification:
+                "[The] source and target may be the same array, but they must not be overlapping arrays." */
+                MPI_Allreduce((source==target) ? MPI_IN_PLACE : source, target, count, tmp_type, reduce_op, comm);
+            }
             break;
         default:
             oshmpi_abort(coll, "Unsupported collective type.");
