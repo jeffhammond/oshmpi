@@ -96,6 +96,7 @@ void oshmpi_abort(int code, char * message);
  */
 
 void oshmpi_initialize(int threading);
+void oshmpi_query_thread(int * provided);
 
 void oshmpi_finalize(void);
 

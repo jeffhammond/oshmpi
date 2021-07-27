@@ -465,6 +465,7 @@ void oshmpi_finalize(void)
 }
 
 void oshmpi_query_thread(int * provided)
+{
     MPI_Query_thread(provided);
 }
 

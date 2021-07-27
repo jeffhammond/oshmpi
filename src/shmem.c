@@ -46,7 +46,7 @@ void shmem_global_exit(int status)
     return;
 }
 
-void shmem_init_thread(int requested, int * provided);
+void shmem_init_thread(int requested, int * provided)
 {
     oshmpi_initialize(requested);
     oshmpi_query_thread(provided);
@@ -54,7 +54,7 @@ void shmem_init_thread(int requested, int * provided);
     return;
 }
 
-void shmem_query_thread(int * provided);
+void shmem_query_thread(int * provided)
 {
     oshmpi_query_thread(provided);
     return;
