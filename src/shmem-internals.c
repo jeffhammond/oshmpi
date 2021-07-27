@@ -464,6 +464,10 @@ void oshmpi_finalize(void)
     return;
 }
 
+void oshmpi_query_thread(int * provided)
+    MPI_Query_thread(provided);
+}
+
 /* quiet and fence are all about ordering.  
  * If put is already ordered, then these are no-ops.
  * fence only works on a single (implicit) remote PE, so

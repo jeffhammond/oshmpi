@@ -46,6 +46,20 @@ void shmem_global_exit(int status)
     return;
 }
 
+void shmem_init_thread(int requested, int * provided);
+{
+    oshmpi_initialize(requested);
+    oshmpi_query_thread(provided);
+    atexit(oshmpi_finalize);
+    return;
+}
+
+void shmem_query_thread(int * provided);
+{
+    oshmpi_query_thread(provided);
+    return;
+}
+
 /* 8.2: Query Routines */
 int _num_pes(void) { return shmem_world_size; }
 int shmem_n_pes(void) { return shmem_world_size; }

@@ -64,21 +64,32 @@
 #define SHMEM_MAJOR_VERSION 1
 #define SHMEM_MINOR_VERSION 2
 
-/* 8.1: Initialization Routines */
-void start_pes(int npes);
+/* 9.1: Initialization Routines */
 void shmem_init(void);
+int shmem_my_pe(void);
+int shmem_n_pes(void);
 void shmem_finalize(void);
 void shmem_global_exit(int status);
-
-/* 8.2: Query Routines */
-int _num_pes(void);
-int shmem_n_pes(void);
-int _my_pe(void);
-int shmem_my_pe(void);
-
-/* 8.3: Accessibility Query Routines */
 int shmem_pe_accessible(int pe);
 int shmem_addr_accessible(void *addr, int pe);
+void *shmem_ptr(void *target, int pe);
+
+
+void start_pes(int npes);
+
+/* deprecated */
+int _num_pes(void);
+int _my_pe(void);
+
+/* 9.2: Thread Support */
+#define SHMEM_THREAD_SINGLE     MPI_THREAD_SINGLE
+#define SHMEM_THREAD_FUNNELED   MPI_THREAD_FUNNELED
+#define SHMEM_THREAD_SERIALIZED MPI_THREAD_SERIALIZED
+#define SHMEM_THREAD_MULTIPLE   MPI_THREAD_MULTIPLE
+void shmem_init_thread(int requested, int * provided);
+void shmem_query_thread(int * provided);
+
+/* 8.3: Accessibility Query Routines */
 
 /* 8.4: Symmetric Heap Routines */
 void *shmalloc(size_t size);
@@ -87,7 +98,6 @@ void *shrealloc(void *ptr, size_t size);
 void shfree(void *ptr);
 
 /* 8.5: Remote Pointer Operations */
-void *shmem_ptr(void *target, int pe);
 
 /* 8.6: Elemental Put Routines */
 void shmem_float_p(float *addr, float value, int pe);
