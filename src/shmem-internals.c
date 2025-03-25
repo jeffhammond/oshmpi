@@ -40,36 +40,36 @@
 /*****************************************************************/
 /* TODO convert all the global status into a struct ala ARMCI-MPI */
 /* requires TLS if MPI is thread-based */
-extern MPI_Comm  SHMEM_COMM_WORLD;
-extern MPI_Group SHMEM_GROUP_WORLD; /* used for creating logpe comms */
+MPI_Comm  SHMEM_COMM_WORLD;
+MPI_Group SHMEM_GROUP_WORLD; /* used for creating logpe comms */
 
-extern int       shmem_is_initialized;
-extern int       shmem_is_finalized;
-extern int       shmem_world_size, shmem_world_rank;
-extern char      shmem_procname[MPI_MAX_PROCESSOR_NAME];
+int       shmem_is_initialized;
+int       shmem_is_finalized;
+int       shmem_world_size, shmem_world_rank;
+char      shmem_procname[MPI_MAX_PROCESSOR_NAME];
 
 #ifdef ENABLE_SMP_OPTIMIZATIONS
-extern MPI_Comm  SHMEM_COMM_NODE;
-extern MPI_Group SHMEM_GROUP_NODE; /* may not be needed as global */
-extern int       shmem_world_is_smp;
-extern int       shmem_node_size, shmem_node_rank;
-extern int *     shmem_smp_rank_list;
-extern void **   shmem_smp_sheap_ptrs;
+MPI_Comm  SHMEM_COMM_NODE;
+MPI_Group SHMEM_GROUP_NODE; /* may not be needed as global */
+int       shmem_world_is_smp;
+int       shmem_node_size, shmem_node_rank;
+int *     shmem_smp_rank_list;
+void **   shmem_smp_sheap_ptrs;
 #endif
 
 /* TODO probably want to make these 5 things into a struct typedef */
-extern MPI_Win shmem_etext_win;
-extern int     shmem_etext_size;
-extern void *  shmem_etext_base_ptr;
+MPI_Win shmem_etext_win;
+int     shmem_etext_size;
+void *  shmem_etext_base_ptr;
 
-extern MPI_Win shmem_sheap_win;
-extern long    shmem_sheap_size;
-extern void *  shmem_sheap_base_ptr;
+MPI_Win shmem_sheap_win;
+long    shmem_sheap_size;
+void *  shmem_sheap_base_ptr;
 
 #ifdef ENABLE_MPMD_SUPPORT
-extern int     shmem_running_mpmd;
-extern int     shmem_mpmd_my_appnum;
-extern MPI_Win shmem_mpmd_appnum_win;
+int     shmem_running_mpmd;
+int     shmem_mpmd_my_appnum;
+MPI_Win shmem_mpmd_appnum_win;
 #endif
 
 /*****************************************************************/
