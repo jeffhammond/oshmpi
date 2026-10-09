@@ -293,11 +293,11 @@ void shmem_put32(void *target, const void *source, size_t len, int pe)
 }
 void shmem_put64(void *target, const void *source, size_t len, int pe)
 {
-    oshmpi_put(MPI_DOUBLE, target, source, len, pe);
+    oshmpi_put(MPI_INT64_T, target, source, len, pe);
 }
 void shmem_put128(void *target, const void *source, size_t len, int pe)
 {
-    oshmpi_put(MPI_C_DOUBLE_COMPLEX, target, source, len, pe);
+    oshmpi_put(MPI_INT64_T, target, source, 2*len, pe);
 }
 void shmem_putmem(void *target, const void *source, size_t len, int pe)
 {
@@ -410,11 +410,11 @@ void shmem_get32(void *target, const void *source, size_t len, int pe)
 }
 void shmem_get64(void *target, const void *source, size_t len, int pe)
 {
-    oshmpi_get(MPI_DOUBLE, target, source, len, pe);
+    oshmpi_get(MPI_INT64_T, target, source, len, pe);
 }
 void shmem_get128(void *target, const void *source, size_t len, int pe)
 {
-    oshmpi_get(MPI_C_DOUBLE_COMPLEX, target, source, len, pe);
+    oshmpi_get(MPI_INT64_T, target, source, 2*len, pe);
 }
 void shmem_getmem(void *target, const void *source, size_t len, int pe)
 {
@@ -466,7 +466,7 @@ void shmem_iput32(void *target, const void *source, ptrdiff_t tst, ptrdiff_t sst
 void shmem_iput64(void *target, const void *source, ptrdiff_t tst, ptrdiff_t sst, size_t len, int pe)
 {
     /* FIXME Why not MPI_INT64_T ? */
-    oshmpi_put_strided(MPI_DOUBLE, target, source, tst, sst, len, pe);
+    oshmpi_put_strided(MPI_INT64_T, target, source, tst, sst, len, pe);
 }
 void shmem_iput128(void *target, const void *source, ptrdiff_t tst, ptrdiff_t sst, size_t len, int pe)
 {
@@ -510,7 +510,7 @@ void shmem_iget32(void *target, const void *source, ptrdiff_t tst, ptrdiff_t sst
 }
 void shmem_iget64(void *target, const void *source, ptrdiff_t tst, ptrdiff_t sst, size_t len, int pe)
 {
-    oshmpi_get_strided(MPI_DOUBLE, target, source, tst, sst, len, pe);
+    oshmpi_get_strided(MPI_INT64_T, target, source, tst, sst, len, pe);
 }
 void shmem_iget128(void *target, const void *source, ptrdiff_t tst, ptrdiff_t sst, size_t len, int pe)
 {
@@ -564,11 +564,11 @@ void shmem_put32_nbi(void *target, const void *source, size_t len, int pe)
 }
 void shmem_put64_nbi(void *target, const void *source, size_t len, int pe)
 {
-    oshmpi_put_nbi(MPI_DOUBLE, target, source, len, pe);
+    oshmpi_put_nbi(MPI_INT64_T, target, source, len, pe);
 }
 void shmem_put128_nbi(void *target, const void *source, size_t len, int pe)
 {
-    oshmpi_put_nbi(MPI_C_DOUBLE_COMPLEX, target, source, len, pe);
+    oshmpi_put_nbi(MPI_INT64_T, target, source, 2*len, pe);
 }
 void shmem_putmem_nbi(void *target, const void *source, size_t len, int pe)
 {
@@ -622,11 +622,11 @@ void shmem_get32_nbi(void *target_nbi, const void *source, size_t len, int pe)
 }
 void shmem_get64_nbi(void *target_nbi, const void *source, size_t len, int pe)
 {
-    oshmpi_get_nbi(MPI_DOUBLE, target_nbi, source, len, pe);
+    oshmpi_get_nbi(MPI_INT64_T, target_nbi, source, len, pe);
 }
 void shmem_get128_nbi(void *target_nbi, const void *source, size_t len, int pe)
 {
-    oshmpi_get_nbi(MPI_C_DOUBLE_COMPLEX, target_nbi, source, len, pe);
+    oshmpi_get_nbi(MPI_INT64_T, target_nbi, source, 2*len, pe);
 }
 void shmem_getmem_nbi(void *target_nbi, const void *source, size_t len, int pe)
 {

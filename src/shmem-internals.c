@@ -4,12 +4,30 @@
 
 /* this code deals with SHMEM communication out of symmetric but non-heap data */
 #if defined(HAVE_APPLE_MAC)
-#warning Global data support is not working yet on Apple.
-    /* https://developer.apple.com/library/mac//documentation/Darwin/Reference/ManPages/10.7/man3/end.3.html */
+    /* The legacy end(3) accessors (get_etext, get_end) are deprecated and do not describe
+     * the data of the main executable on current macOS.  Use the runtime address and size
+     * of the executable's __DATA segment instead; this is correct in the presence of ASLR.
+     * https://developer.apple.com/library/mac//documentation/Darwin/Reference/ManPages/10.7/man3/end.3.html */
 #include <mach-o/getsect.h>
-    unsigned long get_end();
-    unsigned long get_etext();
-    unsigned long get_edata();
+#include <crt_externs.h>
+    static unsigned long oshmpi_data_segment(unsigned long * size)
+    {
+        unsigned long sz = 0;
+        const void * hdr = (const void *)_NSGetMachExecuteHeader();
+#ifdef __LP64__
+        unsigned long base = (unsigned long)getsegmentdata((const struct mach_header_64 *)hdr, "__DATA", &sz);
+#else
+        unsigned long base = (unsigned long)getsegmentdata((const struct mach_header *)hdr, "__DATA", &sz);
+#endif
+        *size = sz;
+        return base;
+    }
+    /* getsect.h declares the deprecated get_etext et al; use our own names for the callers below. */
+    #define get_etext oshmpi_apple_data_begin
+    #define get_edata oshmpi_apple_data_end
+    #define get_end   oshmpi_apple_data_end
+    static unsigned long oshmpi_apple_data_begin(void) { unsigned long sz; return oshmpi_data_segment(&sz); }
+    static unsigned long oshmpi_apple_data_end(void)   { unsigned long sz; unsigned long b = oshmpi_data_segment(&sz); return b + sz; }
 #elif defined(HAVE_LINUX)
     #include <unistd.h>
     /* http://man7.org/linux/man-pages/man3/end.3.html */
