@@ -132,6 +132,11 @@ void *shrealloc(void *ptr, size_t size)
     return mspace_realloc(shmem_heap_mspace, ptr, size);
 }
 
+void *shmem_calloc(size_t count, size_t size)
+{
+    return mspace_calloc(shmem_heap_mspace, count, size);
+}
+
 void shmem_free(void *ptr)
 {
     return mspace_free(shmem_heap_mspace, ptr);
@@ -1120,6 +1125,26 @@ void shmem_longlong_prod_to_all(long long *target, OSHMPI_CONST long long *sourc
 {
     oshmpi_set_psync(SHMEM_REDUCE_SYNC_SIZE, SHMEM_SYNC_VALUE, pSync);
     oshmpi_coll(SHMEM_ALLREDUCE, MPI_LONG_LONG, MPI_PROD, target, source, 0, 0, nreduce, -1 /* root */, PE_start, logPE_stride, PE_size);
+}
+void shmem_complexf_sum_to_all(float complex *target, OSHMPI_CONST float complex *source, int nreduce, int PE_start, int logPE_stride, int PE_size, float complex *pWrk, long *pSync)
+{
+    oshmpi_set_psync(SHMEM_REDUCE_SYNC_SIZE, SHMEM_SYNC_VALUE, pSync);
+    oshmpi_coll(SHMEM_ALLREDUCE, MPI_C_FLOAT_COMPLEX, MPI_SUM, target, source, 0, 0, nreduce, -1 /* root */, PE_start, logPE_stride, PE_size);
+}
+void shmem_complexf_prod_to_all(float complex *target, OSHMPI_CONST float complex *source, int nreduce, int PE_start, int logPE_stride, int PE_size, float complex *pWrk, long *pSync)
+{
+    oshmpi_set_psync(SHMEM_REDUCE_SYNC_SIZE, SHMEM_SYNC_VALUE, pSync);
+    oshmpi_coll(SHMEM_ALLREDUCE, MPI_C_FLOAT_COMPLEX, MPI_PROD, target, source, 0, 0, nreduce, -1 /* root */, PE_start, logPE_stride, PE_size);
+}
+void shmem_complexd_sum_to_all(double complex *target, OSHMPI_CONST double complex *source, int nreduce, int PE_start, int logPE_stride, int PE_size, double complex *pWrk, long *pSync)
+{
+    oshmpi_set_psync(SHMEM_REDUCE_SYNC_SIZE, SHMEM_SYNC_VALUE, pSync);
+    oshmpi_coll(SHMEM_ALLREDUCE, MPI_C_DOUBLE_COMPLEX, MPI_SUM, target, source, 0, 0, nreduce, -1 /* root */, PE_start, logPE_stride, PE_size);
+}
+void shmem_complexd_prod_to_all(double complex *target, OSHMPI_CONST double complex *source, int nreduce, int PE_start, int logPE_stride, int PE_size, double complex *pWrk, long *pSync)
+{
+    oshmpi_set_psync(SHMEM_REDUCE_SYNC_SIZE, SHMEM_SYNC_VALUE, pSync);
+    oshmpi_coll(SHMEM_ALLREDUCE, MPI_C_DOUBLE_COMPLEX, MPI_PROD, target, source, 0, 0, nreduce, -1 /* root */, PE_start, logPE_stride, PE_size);
 }
 
 /* Lock Routines */

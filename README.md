@@ -5,7 +5,7 @@ OSHMPI: OpenSHMEM over MPI-3
 
 Bug fixes and specific feature requests will be addressed as time permits.  We will try to read and comment on issues and pull requests promptly.
 
-We recommend you use [Sandia OpenSHMEM](https://github.com/Sandia-OpenSHMEM/SOS) to get the latest OpenSHMEM features.  We tried to support OpenSHMEM 1.2 but have no plans to support OpenSHMEM 1.3 or later.
+We recommend you use [Sandia OpenSHMEM](https://github.com/Sandia-OpenSHMEM/SOS) to get the latest OpenSHMEM features.  This branch implements the OpenSHMEM 1.3 API (including the standard shmem_malloc/shmem_calloc/shmem_free/shmem_realloc/shmem_align names); OpenSHMEM 1.4 or later is not supported.
 
 Test Status
 ===========

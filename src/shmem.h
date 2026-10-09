@@ -81,7 +81,7 @@
 
 #define  SHMEM_MAJOR_VERSION 1
 #define _SHMEM_MAJOR_VERSION SHMEM_MAJOR_VERSION
-#define  SHMEM_MINOR_VERSION 2
+#define  SHMEM_MINOR_VERSION 3
 #define _SHMEM_MINOR_VERSION SHMEM_MINOR_VERSION
 #define  SHMEM_MAX_NAME_LEN  256
 #define _SHMEM_MAX_NAME_LEN  SHMEM_MAX_NAME_LEN
@@ -104,6 +104,7 @@ void shmem_info_get_name(char *name);
 
 /* 8.2: Memory Management Routines */
 void *shmem_malloc(size_t size);
+void *shmem_calloc(size_t count, size_t size);
 void *shmem_align(size_t alignment, size_t size);
 void *shmem_realloc(void *ptr, size_t size);
 void shmem_free(void *ptr);
