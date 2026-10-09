@@ -560,6 +560,8 @@ int oshmpi_window_offset(const OSHMPI_VOLATILE void *address, const int pe, /* I
 
 void oshmpi_put(MPI_Datatype mpi_type, void *target, const void *source, size_t len, int pe)
 {
+    if (len == 0) return; /* zero-length transfers are no-ops; pointers need not be valid */
+
     enum shmem_window_id_e win_id;
     shmem_offset_t win_offset;
 
@@ -620,6 +622,8 @@ void oshmpi_put(MPI_Datatype mpi_type, void *target, const void *source, size_t 
 
 void oshmpi_get(MPI_Datatype mpi_type, void *target, const void *source, size_t len, int pe)
 {
+    if (len == 0) return; /* zero-length transfers are no-ops; pointers need not be valid */
+
     enum shmem_window_id_e win_id;
     shmem_offset_t win_offset;
 
@@ -680,6 +684,8 @@ void oshmpi_get(MPI_Datatype mpi_type, void *target, const void *source, size_t 
 
 void oshmpi_put_nbi(MPI_Datatype mpi_type, void *target, const void *source, size_t len, int pe)
 {
+    if (len == 0) return; /* zero-length transfers are no-ops; pointers need not be valid */
+
     enum shmem_window_id_e win_id;
     shmem_offset_t win_offset;
 
@@ -739,6 +745,8 @@ void oshmpi_put_nbi(MPI_Datatype mpi_type, void *target, const void *source, siz
 
 void oshmpi_get_nbi(MPI_Datatype mpi_type, void *target, const void *source, size_t len, int pe)
 {
+    if (len == 0) return; /* zero-length transfers are no-ops; pointers need not be valid */
+
     enum shmem_window_id_e win_id;
     shmem_offset_t win_offset;
 
@@ -799,6 +807,8 @@ void oshmpi_get_nbi(MPI_Datatype mpi_type, void *target, const void *source, siz
 void oshmpi_put_strided(MPI_Datatype mpi_type, void *target, const void *source, 
                          ptrdiff_t target_ptrdiff, ptrdiff_t source_ptrdiff, size_t len, int pe)
 {
+    if (len == 0) return; /* zero-length transfers are no-ops; pointers need not be valid */
+
 #if SHMEM_DEBUG>3
     printf("[%d] oshmpi_put_strided: type=%d, target=%p, source=%p, len=%zu, pe=%d \n", 
                     shmem_world_rank, mpi_type, target, source, len, pe);
@@ -875,6 +885,8 @@ void oshmpi_put_strided(MPI_Datatype mpi_type, void *target, const void *source,
 void oshmpi_get_strided(MPI_Datatype mpi_type, void *target, const void *source, 
                          ptrdiff_t target_ptrdiff, ptrdiff_t source_ptrdiff, size_t len, int pe)
 {
+    if (len == 0) return; /* zero-length transfers are no-ops; pointers need not be valid */
+
 #if SHMEM_DEBUG>3
     printf("[%d] oshmpi_get_strided: type=%d, target=%p, source=%p, len=%zu, pe=%d \n", 
                     shmem_world_rank, mpi_type, target, source, len, pe);

@@ -45,7 +45,9 @@ void shmem_finalize(void)
 
 void shmem_global_exit(int status)
 {
-    oshmpi_abort(status,NULL);
+    /* MPI_Abort with an error code of 0 does not reliably terminate the other
+     * processes, but shmem_global_exit must end the whole job, so use a non-zero code. */
+    oshmpi_abort(status != 0 ? status : 1, NULL);
     return;
 }
 
@@ -1172,7 +1174,8 @@ void shmem_complexd_prod_to_all(double complex *target, OSHMPI_CONST double comp
 /* Lock Routines */
 void shmem_set_lock(OSHMPI_VOLATILE long * lock) { oshmpi_lock(lock); }
 void shmem_clear_lock(OSHMPI_VOLATILE long * lock) { oshmpi_unlock(lock); }
-int  shmem_test_lock(OSHMPI_VOLATILE long * lock) { return oshmpi_trylock(lock); }
+/* returns 0 if the lock was acquired, nonzero if it is already held */
+int  shmem_test_lock(OSHMPI_VOLATILE long * lock) { return oshmpi_trylock(lock) ? 0 : 1; }
 
 /* Cache Management Routines (deprecated) */
 void shmem_set_cache_inv(void) { return; }
