@@ -104,47 +104,69 @@ int shmem_addr_accessible(OSHMPI_CONST void *addr, int pe)
 
 /* Symmetric Heap Routines */
 
+/* The OpenSHMEM 1.3 memory management routines are collective and include
+ * a barrier on exit (shmem_free: on entry); a zero-size request returns NULL. */
+
 void *shmem_align(size_t alignment, size_t size)
 {
-    return mspace_memalign(shmem_heap_mspace, alignment, size);
-}
-
-void *shmemalign(size_t alignment, size_t size)
-{
-    return mspace_memalign(shmem_heap_mspace, alignment, size);
+    void *ptr = (size == 0) ? NULL : mspace_memalign(shmem_heap_mspace, alignment, size);
+    shmem_barrier_all();
+    return ptr;
 }
 
 void *shmem_malloc(size_t size)
 {
-    return mspace_malloc(shmem_heap_mspace, size);
-}
-void *shmalloc(size_t size)
-{
-    return mspace_malloc(shmem_heap_mspace, size);
-}
-
-void *shmem_realloc(void *ptr, size_t size)
-{
-    return mspace_realloc(shmem_heap_mspace, ptr, size);
-}
-void *shrealloc(void *ptr, size_t size)
-{
-    return mspace_realloc(shmem_heap_mspace, ptr, size);
+    void *ptr = (size == 0) ? NULL : mspace_malloc(shmem_heap_mspace, size);
+    shmem_barrier_all();
+    return ptr;
 }
 
 void *shmem_calloc(size_t count, size_t size)
 {
-    return mspace_calloc(shmem_heap_mspace, count, size);
+    void *ptr = (count == 0 || size == 0) ? NULL : mspace_calloc(shmem_heap_mspace, count, size);
+    shmem_barrier_all();
+    return ptr;
+}
+
+void *shmem_realloc(void *ptr, size_t size)
+{
+    void *newptr;
+    if (size == 0) {
+        shmem_free(ptr);
+        return NULL;
+    }
+    newptr = mspace_realloc(shmem_heap_mspace, ptr, size);
+    shmem_barrier_all();
+    return newptr;
 }
 
 void shmem_free(void *ptr)
 {
-    return mspace_free(shmem_heap_mspace, ptr);
+    shmem_barrier_all();
+    if (ptr != NULL) {
+        mspace_free(shmem_heap_mspace, ptr);
+    }
+}
+
+/* Deprecated pre-1.2 names */
+void *shmemalign(size_t alignment, size_t size)
+{
+    return shmem_align(alignment, size);
+}
+
+void *shmalloc(size_t size)
+{
+    return shmem_malloc(size);
+}
+
+void *shrealloc(void *ptr, size_t size)
+{
+    return shmem_realloc(ptr, size);
 }
 
 void shfree(void *ptr)
 {
-    return mspace_free(shmem_heap_mspace, ptr);
+    shmem_free(ptr);
 }
 
 void shmem_quiet(void)
