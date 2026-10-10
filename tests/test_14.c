@@ -158,6 +158,7 @@ int main(void)
     uint64_t * flag = shmem_calloc(1, sizeof(uint64_t));
     shmem_barrier_all();
     CHECK(shmem_uint64_test(flag, SHMEM_CMP_EQ, 5) == 0, "test false before set");
+    shmem_barrier_all();   /* every PE has checked before anyone sets */
     shmem_uint64_atomic_set(flag, 5, (me + 1) % np);
     shmem_uint64_wait_until(flag, SHMEM_CMP_EQ, 5);
     CHECK(shmem_uint64_test(flag, SHMEM_CMP_EQ, 5) == 1, "test true after wait_until");

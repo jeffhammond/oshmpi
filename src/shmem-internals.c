@@ -154,6 +154,21 @@ void oshmpi_initialize(int threading)
         MPI_Comm_rank(SHMEM_COMM_WORLD, &shmem_world_rank);
         MPI_Comm_group(SHMEM_COMM_WORLD, &SHMEM_GROUP_WORLD);
 
+        /* OpenSHMEM 1.4 environment variables SHMEM_VERSION and SHMEM_INFO */
+        if (shmem_world_rank==0) {
+            if (getenv("SHMEM_VERSION") != NULL || getenv("SHMEM_INFO") != NULL) {
+                printf("%s, OpenSHMEM %d.%d\n", SHMEM_VENDOR_STRING,
+                       SHMEM_MAJOR_VERSION, SHMEM_MINOR_VERSION);
+            }
+            if (getenv("SHMEM_INFO") != NULL) {
+                printf("SHMEM_SYMMETRIC_SIZE  Size of the symmetric heap (bytes; K, M, G suffixes)\n"
+                       "SHMEM_VERSION         Print the library version at start-up\n"
+                       "SHMEM_INFO            Print this information at start-up\n"
+                       "SHMEM_DEBUG           Accepted; no additional debugging output\n");
+            }
+            fflush(stdout);
+        }
+
         {
             /* Check for MPMD usage. */
             void * pappnum = NULL;
@@ -202,6 +217,8 @@ void oshmpi_initialize(int threading)
         shmem_sheap_size = -1;
         if (shmem_world_rank==0) {
             char * env_char = NULL;
+            /* OpenSHMEM 1.4 environment variable */
+            env_char = getenv("SHMEM_SYMMETRIC_SIZE");
             if (env_char==NULL) {
                 /* This is the same as OpenMPI's OpenSHMEM:
                  * http://www.mellanox.com/related-docs/prod_software/Mellanox_ScalableSHMEM_User_Manual_v2.2.pdf */

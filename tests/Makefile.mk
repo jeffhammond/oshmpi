@@ -16,10 +16,9 @@ check_PROGRAMS += tests/barrier_performance \
                   tests/test_mem13 \
                   tests/test_lock \
                   tests/test_zero_comm \
-         tests/test_thread \
-         tests/test_14 \
                   tests/test_thread \
                   tests/test_14 \
+                  tests/test_generic \
                   # end
 
 TESTS += tests/barrier_performance \
@@ -35,6 +34,9 @@ TESTS += tests/barrier_performance \
          tests/test_mem13 \
          tests/test_lock \
          tests/test_zero_comm \
+         tests/test_thread \
+         tests/test_14 \
+         tests/test_generic \
          # end
 
 tests_barrier_performance_LDADD = libshmem.la
@@ -53,3 +55,4 @@ tests_test_lock_LDADD = libshmem.la
 tests_test_zero_comm_LDADD = libshmem.la
 tests_test_thread_LDADD = libshmem.la
 tests_test_14_LDADD = libshmem.la
+tests_test_generic_LDADD = libshmem.la

@@ -7,6 +7,9 @@ AM_CPPFLAGS = -I$(top_srcdir)/src -DONLY_MSPACES=1
 
 lib_LTLIBRARIES = libshmem.la
 
+# the library implements the functions that the C11 generic macros in shmem.h would rewrite
+libshmem_la_CPPFLAGS = $(AM_CPPFLAGS) -DSHMEM_INTERNAL_INCLUDE
+
 libshmem_la_SOURCES = src/shmem-internals.c      \
                       src/shmem.c                \
                       src/shmem14.c              \
@@ -19,6 +22,7 @@ libshmem_la_SOURCES = src/shmem-internals.c      \
 
 include_HEADERS = src/shmem.h \
 		  src/shmem14.h \
+		  src/shmem14-generic.h \
 		  src/shmemx.h \
 		  src/shmem-internals.h \
 		  src/shmem-wait.h \
