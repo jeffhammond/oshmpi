@@ -149,7 +149,9 @@ int shmem_addr_accessible(OSHMPI_CONST void *addr, int pe)
 void *shmem_align(size_t alignment, size_t size)
 {
     if (size == 0) return NULL;
-    void *ptr = mspace_memalign(shmem_heap_mspace, alignment, size);
+    /* undefined behavior in the spec for these; a null pointer is the safest answer */
+    void *ptr = (alignment == 0 || (alignment & (alignment - 1)) != 0)
+              ? NULL : mspace_memalign(shmem_heap_mspace, alignment, size);
     shmem_barrier_all();
     return ptr;
 }
@@ -347,11 +349,11 @@ void shmem_putmem(void *target, const void *source, size_t len, int pe)
     oshmpi_put(MPI_BYTE, target, source, len, pe);
 }
 /* these are extensions */
-void shmem_complexf_put(float complex * target, const float complex * source, size_t len, int pe)
+void shmem_complexf_put(float _Complex * target, const float _Complex * source, size_t len, int pe)
 {
     oshmpi_put(MPI_COMPLEX, target, source, len, pe);
 }
-void shmem_complexd_put(double complex * target, const double complex * source, size_t len, int pe)
+void shmem_complexd_put(double _Complex * target, const double _Complex * source, size_t len, int pe)
 {
     oshmpi_put(MPI_DOUBLE_COMPLEX, target, source, len, pe);
 }
@@ -464,11 +466,11 @@ void shmem_getmem(void *target, const void *source, size_t len, int pe)
     oshmpi_get(MPI_BYTE, target, source, len, pe);
 }
 /* these are extensions */
-void shmem_complexf_get(float complex * target, const float complex * source, size_t len, int pe)
+void shmem_complexf_get(float _Complex * target, const float _Complex * source, size_t len, int pe)
 {
     oshmpi_get(MPI_COMPLEX, target, source, len, pe);
 }
-void shmem_complexd_get(double complex * target, const double complex * source, size_t len, int pe)
+void shmem_complexd_get(double _Complex * target, const double _Complex * source, size_t len, int pe)
 {
     oshmpi_get(MPI_DOUBLE_COMPLEX, target, source, len, pe);
 }
@@ -988,22 +990,22 @@ void shmem_alltoalls64(void *dest, const void *source, ptrdiff_t dst,
 void shmem_short_and_to_all(short *target, OSHMPI_CONST short *source, int nreduce, int PE_start, int logPE_stride, int PE_size, short *pWrk, long *pSync)
 {
     oshmpi_set_psync(SHMEM_REDUCE_SYNC_SIZE, SHMEM_SYNC_VALUE, pSync);
-    oshmpi_coll(SHMEM_ALLREDUCE, MPI_SHORT, MPI_LAND, target, source, 0, 0, nreduce, -1 /* root */, PE_start, logPE_stride, PE_size);
+    oshmpi_coll(SHMEM_ALLREDUCE, MPI_SHORT, MPI_BAND, target, source, 0, 0, nreduce, -1 /* root */, PE_start, logPE_stride, PE_size);
 }
 void shmem_int_and_to_all(int *target, OSHMPI_CONST int *source, int nreduce, int PE_start, int logPE_stride, int PE_size, int *pWrk, long *pSync)
 {
     oshmpi_set_psync(SHMEM_REDUCE_SYNC_SIZE, SHMEM_SYNC_VALUE, pSync);
-    oshmpi_coll(SHMEM_ALLREDUCE, MPI_INT, MPI_LAND, target, source, 0, 0, nreduce, -1 /* root */, PE_start, logPE_stride, PE_size);
+    oshmpi_coll(SHMEM_ALLREDUCE, MPI_INT, MPI_BAND, target, source, 0, 0, nreduce, -1 /* root */, PE_start, logPE_stride, PE_size);
 }
 void shmem_long_and_to_all(long *target, OSHMPI_CONST long *source, int nreduce, int PE_start, int logPE_stride, int PE_size, long *pWrk, long *pSync)
 {
     oshmpi_set_psync(SHMEM_REDUCE_SYNC_SIZE, SHMEM_SYNC_VALUE, pSync);
-    oshmpi_coll(SHMEM_ALLREDUCE, MPI_LONG, MPI_LAND, target, source, 0, 0, nreduce, -1 /* root */, PE_start, logPE_stride, PE_size);
+    oshmpi_coll(SHMEM_ALLREDUCE, MPI_LONG, MPI_BAND, target, source, 0, 0, nreduce, -1 /* root */, PE_start, logPE_stride, PE_size);
 }
 void shmem_longlong_and_to_all(long long *target, OSHMPI_CONST long long *source, int nreduce, int PE_start, int logPE_stride, int PE_size, long long *pWrk, long *pSync)
 {
     oshmpi_set_psync(SHMEM_REDUCE_SYNC_SIZE, SHMEM_SYNC_VALUE, pSync);
-    oshmpi_coll(SHMEM_ALLREDUCE, MPI_LONG_LONG, MPI_LAND, target, source, 0, 0, nreduce, -1 /* root */, PE_start, logPE_stride, PE_size);
+    oshmpi_coll(SHMEM_ALLREDUCE, MPI_LONG_LONG, MPI_BAND, target, source, 0, 0, nreduce, -1 /* root */, PE_start, logPE_stride, PE_size);
 }
 
 void shmem_short_or_to_all(short *target, OSHMPI_CONST short *source, int nreduce, int PE_start, int logPE_stride, int PE_size, short *pWrk, long *pSync)
@@ -1191,22 +1193,22 @@ void shmem_longlong_prod_to_all(long long *target, OSHMPI_CONST long long *sourc
     oshmpi_set_psync(SHMEM_REDUCE_SYNC_SIZE, SHMEM_SYNC_VALUE, pSync);
     oshmpi_coll(SHMEM_ALLREDUCE, MPI_LONG_LONG, MPI_PROD, target, source, 0, 0, nreduce, -1 /* root */, PE_start, logPE_stride, PE_size);
 }
-void shmem_complexf_sum_to_all(float complex *target, OSHMPI_CONST float complex *source, int nreduce, int PE_start, int logPE_stride, int PE_size, float complex *pWrk, long *pSync)
+void shmem_complexf_sum_to_all(float _Complex *target, OSHMPI_CONST float _Complex *source, int nreduce, int PE_start, int logPE_stride, int PE_size, float _Complex *pWrk, long *pSync)
 {
     oshmpi_set_psync(SHMEM_REDUCE_SYNC_SIZE, SHMEM_SYNC_VALUE, pSync);
     oshmpi_coll(SHMEM_ALLREDUCE, MPI_C_FLOAT_COMPLEX, MPI_SUM, target, source, 0, 0, nreduce, -1 /* root */, PE_start, logPE_stride, PE_size);
 }
-void shmem_complexf_prod_to_all(float complex *target, OSHMPI_CONST float complex *source, int nreduce, int PE_start, int logPE_stride, int PE_size, float complex *pWrk, long *pSync)
+void shmem_complexf_prod_to_all(float _Complex *target, OSHMPI_CONST float _Complex *source, int nreduce, int PE_start, int logPE_stride, int PE_size, float _Complex *pWrk, long *pSync)
 {
     oshmpi_set_psync(SHMEM_REDUCE_SYNC_SIZE, SHMEM_SYNC_VALUE, pSync);
     oshmpi_coll(SHMEM_ALLREDUCE, MPI_C_FLOAT_COMPLEX, MPI_PROD, target, source, 0, 0, nreduce, -1 /* root */, PE_start, logPE_stride, PE_size);
 }
-void shmem_complexd_sum_to_all(double complex *target, OSHMPI_CONST double complex *source, int nreduce, int PE_start, int logPE_stride, int PE_size, double complex *pWrk, long *pSync)
+void shmem_complexd_sum_to_all(double _Complex *target, OSHMPI_CONST double _Complex *source, int nreduce, int PE_start, int logPE_stride, int PE_size, double _Complex *pWrk, long *pSync)
 {
     oshmpi_set_psync(SHMEM_REDUCE_SYNC_SIZE, SHMEM_SYNC_VALUE, pSync);
     oshmpi_coll(SHMEM_ALLREDUCE, MPI_C_DOUBLE_COMPLEX, MPI_SUM, target, source, 0, 0, nreduce, -1 /* root */, PE_start, logPE_stride, PE_size);
 }
-void shmem_complexd_prod_to_all(double complex *target, OSHMPI_CONST double complex *source, int nreduce, int PE_start, int logPE_stride, int PE_size, double complex *pWrk, long *pSync)
+void shmem_complexd_prod_to_all(double _Complex *target, OSHMPI_CONST double _Complex *source, int nreduce, int PE_start, int logPE_stride, int PE_size, double _Complex *pWrk, long *pSync)
 {
     oshmpi_set_psync(SHMEM_REDUCE_SYNC_SIZE, SHMEM_SYNC_VALUE, pSync);
     oshmpi_coll(SHMEM_ALLREDUCE, MPI_C_DOUBLE_COMPLEX, MPI_PROD, target, source, 0, 0, nreduce, -1 /* root */, PE_start, logPE_stride, PE_size);

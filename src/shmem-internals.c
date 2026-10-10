@@ -115,13 +115,16 @@ void oshmpi_warn(char * message)
     return;
 }
 
+static int shmem_mpi_owner = 0;   /* 1 if OSHMPI called MPI_Init and so must call MPI_Finalize */
+
 void oshmpi_abort(int code, char * message)
 {
     if (message!=NULL) {
         printf("[%d] %s \n", shmem_world_rank, message);
         fflush(stdout);
     }
-    MPI_Abort(SHMEM_COMM_WORLD, code);
+    /* abort the whole job: MPICH does not reliably reap peers when aborting a duplicated communicator */
+    MPI_Abort(MPI_COMM_WORLD, code);
     return;
 }
 
@@ -134,6 +137,7 @@ void oshmpi_initialize(int threading)
         int provided;
         if (!flag) {
             MPI_Init_thread(NULL, NULL, threading, &provided);
+            shmem_mpi_owner = 1;
         } else {
             MPI_Query_thread(&provided);
         }
@@ -152,15 +156,18 @@ void oshmpi_initialize(int threading)
 
         /* OpenSHMEM 1.4 environment variables SHMEM_VERSION and SHMEM_INFO */
         if (shmem_world_rank==0) {
-            if (getenv("SHMEM_VERSION") != NULL || getenv("SHMEM_INFO") != NULL) {
+            /* SMA_VERSION, SMA_INFO and SMA_DEBUG are deprecated in 1.4 but still accepted */
+            if (getenv("SHMEM_VERSION") != NULL || getenv("SHMEM_INFO") != NULL ||
+                getenv("SMA_VERSION") != NULL || getenv("SMA_INFO") != NULL) {
                 printf("%s, OpenSHMEM %d.%d\n", SHMEM_VENDOR_STRING,
                        SHMEM_MAJOR_VERSION, SHMEM_MINOR_VERSION);
             }
-            if (getenv("SHMEM_INFO") != NULL) {
+            if (getenv("SHMEM_INFO") != NULL || getenv("SMA_INFO") != NULL) {
                 printf("SHMEM_SYMMETRIC_SIZE  Size of the symmetric heap (bytes; K, M, G suffixes)\n"
                        "SHMEM_VERSION         Print the library version at start-up\n"
                        "SHMEM_INFO            Print this information at start-up\n"
-                       "SHMEM_DEBUG           Accepted; no additional debugging output\n");
+                       "SHMEM_DEBUG           Accepted; no additional debugging output\n"
+                       "SMA_*                 Deprecated aliases of the SHMEM_* variables above\n");
             }
             fflush(stdout);
         }
@@ -503,7 +510,9 @@ void oshmpi_finalize(void)
 
             shmem_is_finalized = 1;
         }
-        MPI_Finalize();
+        /* If the user initialized MPI, the user finalizes it. */
+        if (shmem_mpi_owner)
+            MPI_Finalize();
     }
     return;
 }
@@ -1293,8 +1302,9 @@ static inline void oshmpi_acquire_comm(int pe_start, int pe_logs, int pe_size, /
             pe_size  == comm_cache[i].size  ) 
         {
             *comm  = comm_cache[i].comm;
+            /* PE_root is an ordinal within the active set, which is the rank in the new communicator */
             if (pe_root>=0) {
-                *broot = oshmpi_translate_root(comm_cache[i].group, pe_root);
+                *broot = pe_root;
             }
             return;
         }
@@ -1318,7 +1328,7 @@ static inline void oshmpi_acquire_comm(int pe_start, int pe_logs, int pe_size, /
         MPI_Comm_create_group(SHMEM_COMM_WORLD, strided_group, pe_start /* tag */, comm); 
 
         if (pe_root>=0) {
-            *broot = oshmpi_translate_root(strided_group, pe_root);
+            *broot = pe_root;
         }
 
 #if ENABLE_COMM_CACHING
@@ -1329,6 +1339,7 @@ static inline void oshmpi_acquire_comm(int pe_start, int pe_logs, int pe_size, /
                 comm_cache[i].size  = pe_size;
                 comm_cache[i].comm  = *comm;
                 comm_cache[i].group = strided_group;
+                free(pe_list);
                 return;
             }
         }
@@ -1396,7 +1407,8 @@ void oshmpi_coll(enum shmem_coll_type_e coll, MPI_Datatype mpi_type, MPI_Op redu
                 /* For bcast, MPI uses one buffer but SHMEM uses two. */
                 /* From the OpenSHMEM 1.0 specification:
                  * "The data is not copied to the target address on the PE specified by PE_root." */
-                MPI_Bcast(shmem_world_rank==pe_root ? (void*) source : target,
+                /* pe_root is relative to the active set; the root's world rank is: */
+                MPI_Bcast(shmem_world_rank==(pe_start + pe_root*(1<<pe_logs)) ? (void*) source : target,
                          count, tmp_type, broot, comm);
 	    }
             break;

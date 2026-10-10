@@ -31,6 +31,10 @@ include_HEADERS = src/shmem.h \
 		  src/type_contiguous_x.h \
 		  src/oshmpi-mcs-lock.h
 
+# deprecated (1.1) but still required: <mpp/shmem.h>
+mppdir = $(includedir)/mpp
+mpp_HEADERS = src/mpp/shmem.h src/mpp/shmemx.h
+
 bin_PROGRAMS =
 check_PROGRAMS =
 TESTS =

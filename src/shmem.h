@@ -21,7 +21,12 @@
 #if !defined(__cplusplus) && (!defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L)
 #error "The OpenSHMEM headers require a C11 compiler (for example, -std=gnu11)."
 #endif
-#include <complex.h>
+
+#ifdef __cplusplus
+#define OSHMPI_NORETURN [[noreturn]]
+#else
+#define OSHMPI_NORETURN _Noreturn
+#endif
 
 /* these should not be here */
 #include <stdio.h>
@@ -97,6 +102,10 @@
 #define  SHMEM_VENDOR_STRING "OpenSHMEM over MPI-3 RMA"
 #define _SHMEM_VENDOR_STRING SHMEM_VENDOR_STRING
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* 8.1: OpenSHMEM Library API Library Setup, Exit, and Query Routines */
 void shmem_init(void);
 
@@ -108,7 +117,7 @@ void shmem_init(void);
 int  shmem_init_thread(int requested, int *provided);
 void shmem_query_thread(int *provided);
 void shmem_finalize(void);
-_Noreturn void shmem_global_exit(int status);
+OSHMPI_NORETURN void shmem_global_exit(int status);
 int shmem_n_pes(void);
 int shmem_my_pe(void);
 
@@ -274,48 +283,48 @@ void shmem_get64_nbi(void *dest, const void *source, size_t nelems, int pe);
 void shmem_get128_nbi(void *dest, const void *source, size_t nelems, int pe);
 
 /* 8.4: Atomic Memory fetch-and-operate Routines -- Swap */
-float shmem_float_swap(float *target, float value, int pe);
-double shmem_double_swap(double *target, double value, int pe);
-int shmem_int_swap(int *target, int value, int pe);
-long shmem_long_swap(long *target, long value, int pe);
-long long shmem_longlong_swap(long long *target, long long value, int pe);
+float shmem_float_swap(float *target, float value, int pe) OSHMPI_DEPRECATED;
+double shmem_double_swap(double *target, double value, int pe) OSHMPI_DEPRECATED;
+int shmem_int_swap(int *target, int value, int pe) OSHMPI_DEPRECATED;
+long shmem_long_swap(long *target, long value, int pe) OSHMPI_DEPRECATED;
+long long shmem_longlong_swap(long long *target, long long value, int pe) OSHMPI_DEPRECATED;
 
 /* 8.4: Atomic Memory fetch-and-operate Routines -- Cswap */
-int shmem_int_cswap(int *target, int cond, int value, int pe);
-long shmem_long_cswap(long *target, long cond, long value, int pe);
+int shmem_int_cswap(int *target, int cond, int value, int pe) OSHMPI_DEPRECATED;
+long shmem_long_cswap(long *target, long cond, long value, int pe) OSHMPI_DEPRECATED;
 long long shmem_longlong_cswap(long long * target, long long cond,
-                          long long value, int pe);
+                          long long value, int pe) OSHMPI_DEPRECATED;
 
 /* 8.4: Atomic Memory fetch-and-operate Routines -- Fetch and Add */
-int shmem_int_fadd(int *target, int value, int pe);
-long shmem_long_fadd(long *target, long value, int pe);
-long long shmem_longlong_fadd(long long *target, long long value, int pe);
+int shmem_int_fadd(int *target, int value, int pe) OSHMPI_DEPRECATED;
+long shmem_long_fadd(long *target, long value, int pe) OSHMPI_DEPRECATED;
+long long shmem_longlong_fadd(long long *target, long long value, int pe) OSHMPI_DEPRECATED;
 
 /* 8.4: Atomic Memory fetch-and-operate Routines -- Fetch and Increment */
-int shmem_int_finc(int *target, int pe);
-long shmem_long_finc(long *target, int pe);
-long long shmem_longlong_finc(long long *target, int pe);
+int shmem_int_finc(int *target, int pe) OSHMPI_DEPRECATED;
+long shmem_long_finc(long *target, int pe) OSHMPI_DEPRECATED;
+long long shmem_longlong_finc(long long *target, int pe) OSHMPI_DEPRECATED;
 
 /* 8.4: Atomic Memory Operation Routines -- Add */
-void shmem_int_add(int *target, int value, int pe);
-void shmem_long_add(long *target, long value, int pe);
-void shmem_longlong_add(long long *target, long long value, int pe);
+void shmem_int_add(int *target, int value, int pe) OSHMPI_DEPRECATED;
+void shmem_long_add(long *target, long value, int pe) OSHMPI_DEPRECATED;
+void shmem_longlong_add(long long *target, long long value, int pe) OSHMPI_DEPRECATED;
 
 /* 8.4: Atomic Memory Operation Routines -- Increment */
-void shmem_int_inc(int *target, int pe);
-void shmem_long_inc(long *target, int pe);
-void shmem_longlong_inc(long long *target, int pe);
+void shmem_int_inc(int *target, int pe) OSHMPI_DEPRECATED;
+void shmem_long_inc(long *target, int pe) OSHMPI_DEPRECATED;
+void shmem_longlong_inc(long long *target, int pe) OSHMPI_DEPRECATED;
 
 /* 8.4: Atomic fetch */
-int shmem_int_fetch(const int *source, int pe);
-long shmem_long_fetch(const long *source, int pe);
-long long shmem_longlong_fetch(const long long *source, int pe);
-float shmem_float_fetch(const float *source, int pe);
-double shmem_double_fetch(const double *source, int pe);
+int shmem_int_fetch(const int *source, int pe) OSHMPI_DEPRECATED;
+long shmem_long_fetch(const long *source, int pe) OSHMPI_DEPRECATED;
+long long shmem_longlong_fetch(const long long *source, int pe) OSHMPI_DEPRECATED;
+float shmem_float_fetch(const float *source, int pe) OSHMPI_DEPRECATED;
+double shmem_double_fetch(const double *source, int pe) OSHMPI_DEPRECATED;
 
 /* 8.4: Atomic set */
-void shmem_int_set(int *dest, int value, int pe);
-void shmem_long_set(long *dest, long value, int pe);
+void shmem_int_set(int *dest, int value, int pe) OSHMPI_DEPRECATED;
+void shmem_long_set(long *dest, long value, int pe) OSHMPI_DEPRECATED;
 void shmem_longlong_set(long long *dest, long long value, int pe);
 void shmem_float_set(float *dest, float value, int pe);
 void shmem_double_set(double *dest, double value, int pe);
@@ -417,12 +426,12 @@ void shmem_double_sum_to_all(double *target, OSHMPI_CONST double *source, int nr
 void shmem_longdouble_sum_to_all(long double *target, OSHMPI_CONST long double *source,
                                  int nreduce, int PE_start, int logPE_stride,
                                  int PE_size, long double *pWrk, long *pSync);
-void shmem_complexf_sum_to_all(float complex *target, OSHMPI_CONST float complex *source,
+void shmem_complexf_sum_to_all(float _Complex *target, OSHMPI_CONST float _Complex *source,
                                int nreduce, int PE_start, int logPE_stride,
-                               int PE_size, float complex *pWrk, long *pSync);
-void shmem_complexd_sum_to_all(double complex *target, OSHMPI_CONST double complex *source,
+                               int PE_size, float _Complex *pWrk, long *pSync);
+void shmem_complexd_sum_to_all(double _Complex *target, OSHMPI_CONST double _Complex *source,
                                int nreduce, int PE_start, int logPE_stride,
-                               int PE_size, double complex *pWrk, long *pSync);
+                               int PE_size, double _Complex *pWrk, long *pSync);
 void shmem_short_sum_to_all(short *target, OSHMPI_CONST short *source, int nreduce,
                             int PE_start, int logPE_stride, int PE_size,
                             short *pWrk, long *pSync);
@@ -445,13 +454,13 @@ void shmem_double_prod_to_all(double *target, OSHMPI_CONST double *source, int n
 void shmem_longdouble_prod_to_all(long double *target, OSHMPI_CONST long double *source,
                                   int nreduce, int PE_start, int logPE_stride,
                                   int PE_size, long double *pWrk, long *pSync);
-void shmem_complexf_prod_to_all(float complex *target, OSHMPI_CONST float complex *source,
+void shmem_complexf_prod_to_all(float _Complex *target, OSHMPI_CONST float _Complex *source,
                                 int nreduce, int PE_start, int logPE_stride,
-                                int PE_size, float complex *pWrk, long *pSync);
-void shmem_complexd_prod_to_all(double complex *target,
-                                OSHMPI_CONST double complex *source, int nreduce,
+                                int PE_size, float _Complex *pWrk, long *pSync);
+void shmem_complexd_prod_to_all(double _Complex *target,
+                                OSHMPI_CONST double _Complex *source, int nreduce,
                                 int PE_start, int logPE_stride, int PE_size,
-                                double complex *pWrk, long *pSync);
+                                double _Complex *pWrk, long *pSync);
 void shmem_short_prod_to_all(short *target, OSHMPI_CONST short *source, int nreduce,
                              int PE_start, int logPE_stride, int PE_size,
                              short *pWrk, long *pSync);
@@ -499,11 +508,11 @@ void shmem_alltoalls64(void *dest, const void *source, ptrdiff_t dst,
                        int logPE_stride, int PE_size, long *pSync);
 
 /* 8.6: Point-to-Point Synchronization Routines -- Wait */
-void shmem_short_wait(OSHMPI_VOLATILE short *var, short value);
-void shmem_int_wait(OSHMPI_VOLATILE int *var, int value);
-void shmem_long_wait(OSHMPI_VOLATILE long *var, long value);
-void shmem_longlong_wait(OSHMPI_VOLATILE long long *var, long long value);
-void shmem_wait(OSHMPI_VOLATILE long *ivar, long cmp_value);
+void shmem_short_wait(OSHMPI_VOLATILE short *var, short value) OSHMPI_DEPRECATED;
+void shmem_int_wait(OSHMPI_VOLATILE int *var, int value) OSHMPI_DEPRECATED;
+void shmem_long_wait(OSHMPI_VOLATILE long *var, long value) OSHMPI_DEPRECATED;
+void shmem_longlong_wait(OSHMPI_VOLATILE long long *var, long long value) OSHMPI_DEPRECATED;
+void shmem_wait(OSHMPI_VOLATILE long *ivar, long cmp_value) OSHMPI_DEPRECATED;
 
 /* 8.6: Point-to-Point Synchronization Routines -- Wait Until */
 void shmem_short_wait_until(OSHMPI_VOLATILE short *var, int cond, short value);
@@ -511,7 +520,7 @@ void shmem_int_wait_until(OSHMPI_VOLATILE int *var, int cond, int value);
 void shmem_long_wait_until(OSHMPI_VOLATILE long *var, int cond, long value);
 void shmem_longlong_wait_until(OSHMPI_VOLATILE long long *var, int cond,
                                long long value);
-void shmem_wait_until(OSHMPI_VOLATILE long *ivar, int cmp, long value);
+void shmem_wait_until(OSHMPI_VOLATILE long *ivar, int cmp, long value) OSHMPI_DEPRECATED;
 
 /* 8.7: Memory Ordering Routines */
 void shmem_quiet(void);
@@ -616,20 +625,24 @@ long shmem_swap(long *target, long value, int pe);
 #endif /* C11 */
 
 /* extensions? */
-void shmem_complexf_put(float complex * target,
-                        const float complex * source, size_t nelems, int pe);
-void shmem_complexd_put(double complex * target,
-                        const double complex * source, size_t nelems, int pe);
+void shmem_complexf_put(float _Complex * target,
+                        const float _Complex * source, size_t nelems, int pe);
+void shmem_complexd_put(double _Complex * target,
+                        const double _Complex * source, size_t nelems, int pe);
 
-void shmem_complexf_get(float complex * target,
-                        const float complex * source, size_t nelems, int pe);
-void shmem_complexd_get(double complex * target,
-                        const double complex * source, size_t nelems, int pe);
+void shmem_complexf_get(float _Complex * target,
+                        const float _Complex * source, size_t nelems, int pe);
+void shmem_complexd_get(double _Complex * target,
+                        const double _Complex * source, size_t nelems, int pe);
 
  /* Portals extensions */
 double shmem_wtime(void);
 char* shmem_nodename(void);
 
 #include "shmem14.h"
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* OSHMPI_SHMEM_H */

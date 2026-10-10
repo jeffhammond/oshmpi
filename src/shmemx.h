@@ -6,6 +6,10 @@
 #include "shmemconf.h"
 #include "shmem.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
  /* Portals extensions */
 double shmem_wtime(void);
 char* shmem_nodename(void);
@@ -77,6 +81,10 @@ void shmemx_aget(void *target, const void *source,
 
 #if EXTENSION_INIT_SUBCOMM
 #error TODO
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* OSHMPI_SHMEMX_H */
