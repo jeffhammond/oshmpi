@@ -37,6 +37,31 @@ void shmem_init(void)
     return;
 }
 
+/* Map SHMEM_THREAD_* to the MPI thread level to request. */
+static int oshmpi_mpi_thread_level(int shmem_level)
+{
+    switch (shmem_level) {
+        case SHMEM_THREAD_MULTIPLE:   return MPI_THREAD_MULTIPLE;
+        case SHMEM_THREAD_SERIALIZED: return MPI_THREAD_SERIALIZED;
+        case SHMEM_THREAD_FUNNELED:   return MPI_THREAD_FUNNELED;
+        default:                      return MPI_THREAD_SINGLE;
+    }
+}
+
+void shmem_init_thread(int requested, int *provided)
+{
+    oshmpi_initialize(oshmpi_mpi_thread_level(requested));
+    *provided = oshmpi_query_thread();
+    atexit(oshmpi_finalize);
+    return;
+}
+
+void shmem_query_thread(int *provided)
+{
+    *provided = oshmpi_query_thread();
+    return;
+}
+
 void shmem_finalize(void)
 {
     oshmpi_finalize();

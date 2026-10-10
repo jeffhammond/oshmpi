@@ -33,6 +33,7 @@ MPI_Comm  SHMEM_COMM_WORLD;
 MPI_Group SHMEM_GROUP_WORLD; /* used for creating logpe comms */
 
 int       shmem_is_initialized;
+int       shmem_thread_provided;   /* MPI_THREAD_* level provided by MPI */
 int       shmem_is_finalized;
 int       shmem_world_size, shmem_world_rank;
 char      shmem_procname[MPI_MAX_PROCESSOR_NAME];
@@ -96,6 +97,7 @@ void oshmpi_abort(int code, char * message);
  */
 
 void oshmpi_initialize(int threading);
+int  oshmpi_query_thread(void); /* returns the SHMEM_THREAD_* level provided */
 
 void oshmpi_finalize(void);
 

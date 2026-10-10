@@ -90,6 +90,14 @@
 
 /* 8.1: OpenSHMEM Library API Library Setup, Exit, and Query Routines */
 void shmem_init(void);
+
+/* 9.2: Thread Support */
+#define  SHMEM_THREAD_SINGLE     0
+#define  SHMEM_THREAD_FUNNELED   1
+#define  SHMEM_THREAD_SERIALIZED 2
+#define  SHMEM_THREAD_MULTIPLE   3
+void shmem_init_thread(int requested, int *provided);
+void shmem_query_thread(int *provided);
 void shmem_finalize(void);
 void shmem_global_exit(int status);
 int shmem_n_pes(void);

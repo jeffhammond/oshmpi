@@ -62,6 +62,7 @@ extern MPI_Comm  SHMEM_COMM_WORLD;
 extern MPI_Group SHMEM_GROUP_WORLD; /* used for creating logpe comms */
 
 extern int       shmem_is_initialized;
+extern int       shmem_thread_provided;
 extern int       shmem_is_finalized;
 extern int       shmem_world_size, shmem_world_rank;
 extern char      shmem_procname[MPI_MAX_PROCESSOR_NAME];
@@ -141,8 +142,9 @@ void oshmpi_initialize(int threading)
             MPI_Query_thread(&provided);
         }
 
-        if (threading<provided)
-            oshmpi_abort(provided, "Your MPI implementation did not provide the requested thread support.");
+        /* The caller finds out what was provided with shmem_query_thread;
+         * having less than requested is not fatal, as for MPI. */
+        shmem_thread_provided = provided;
     }
 
     if (!shmem_is_initialized) {
@@ -366,7 +368,8 @@ void oshmpi_initialize(int threading)
          * is being crappy and not allocating shared memory properly. */
         memset(shmem_sheap_base_ptr,0,shmem_sheap_size);
 #endif
-        shmem_heap_mspace = create_mspace_with_base(shmem_sheap_base_ptr, shmem_sheap_size, 0 /* locked */);
+        shmem_heap_mspace = create_mspace_with_base(shmem_sheap_base_ptr, shmem_sheap_size,
+                                                    (shmem_thread_provided == MPI_THREAD_MULTIPLE) /* locked */);
 
 	shmem_etext_base_ptr = (void*) get_etext();
         unsigned long long_etext_size   = get_end() - (unsigned long)shmem_etext_base_ptr;
@@ -429,6 +432,16 @@ void oshmpi_initialize(int threading)
         shmem_is_initialized = 1;
     }
     return;
+}
+
+int oshmpi_query_thread(void)
+{
+    switch (shmem_thread_provided) {
+        case MPI_THREAD_MULTIPLE:   return 3; /* SHMEM_THREAD_MULTIPLE   */
+        case MPI_THREAD_SERIALIZED: return 2; /* SHMEM_THREAD_SERIALIZED */
+        case MPI_THREAD_FUNNELED:   return 1; /* SHMEM_THREAD_FUNNELED   */
+        default:                    return 0; /* SHMEM_THREAD_SINGLE     */
+    }
 }
 
 void oshmpi_finalize(void)
