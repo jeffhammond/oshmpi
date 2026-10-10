@@ -341,7 +341,7 @@ void oshmpi_initialize(int threading)
             /* There is no performance advantage associated with a contiguous layout of shared memory. */
             MPI_Info_set(sheap_info, "alloc_shared_noncontig", "true");
 
-            int rc = MPI_Win_allocate_shared((MPI_Aint)shmem_sheap_size, 1 /* disp_unit */, sheap_info,
+            int rc = MPI_Win_allocate_shared((MPI_Aint)(shmem_sheap_size + 128*sizeof(size_t)), 1 /* disp_unit */, sheap_info,
                                              SHMEM_COMM_WORLD, &shmem_sheap_base_ptr, &shmem_sheap_win);
             if (rc!=MPI_SUCCESS) {
                 char errmsg[MPI_MAX_ERROR_STRING];
@@ -360,7 +360,7 @@ void oshmpi_initialize(int threading)
 #endif
         {
             MPI_Info_set(sheap_info, "alloc_shm", "true");
-            int rc = MPI_Win_allocate((MPI_Aint)shmem_sheap_size, 1 /* disp_unit */, sheap_info,
+            int rc = MPI_Win_allocate((MPI_Aint)(shmem_sheap_size + 128*sizeof(size_t)), 1 /* disp_unit */, sheap_info,
                                       SHMEM_COMM_WORLD, &shmem_sheap_base_ptr, &shmem_sheap_win);
             if (rc!=MPI_SUCCESS) {
                 char errmsg[MPI_MAX_ERROR_STRING];
