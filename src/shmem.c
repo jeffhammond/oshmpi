@@ -138,48 +138,55 @@ int shmem_addr_accessible(OSHMPI_CONST void *addr, int pe)
 
 /* Symmetric Heap Routines */
 
-/* The OpenSHMEM 1.3 memory management routines are collective and include
- * a barrier on exit (shmem_free: on entry); a zero-size request returns NULL. */
+/* The memory management routines are collective on the world team.  A zero-size
+ * request performs no action (and no barrier) and returns NULL; otherwise the
+ * allocating routines barrier on exit, shmem_free barriers on entry (nothing
+ * for a NULL pointer) and shmem_realloc barriers on entry when it changes an
+ * existing block and on exit when it allocates. */
 
 void *shmem_align(size_t alignment, size_t size)
 {
-    void *ptr = (size == 0) ? NULL : mspace_memalign(shmem_heap_mspace, alignment, size);
+    if (size == 0) return NULL;
+    void *ptr = mspace_memalign(shmem_heap_mspace, alignment, size);
     shmem_barrier_all();
     return ptr;
 }
 
 void *shmem_malloc(size_t size)
 {
-    void *ptr = (size == 0) ? NULL : mspace_malloc(shmem_heap_mspace, size);
+    if (size == 0) return NULL;
+    void *ptr = mspace_malloc(shmem_heap_mspace, size);
     shmem_barrier_all();
     return ptr;
 }
 
 void *shmem_calloc(size_t count, size_t size)
 {
-    void *ptr = (count == 0 || size == 0) ? NULL : mspace_calloc(shmem_heap_mspace, count, size);
+    if (count == 0 || size == 0) return NULL;
+    void *ptr = mspace_calloc(shmem_heap_mspace, count, size);
     shmem_barrier_all();
     return ptr;
 }
 
 void *shmem_realloc(void *ptr, size_t size)
 {
-    void *newptr;
+    if (ptr == NULL)
+        return shmem_malloc(size);
     if (size == 0) {
         shmem_free(ptr);
         return NULL;
     }
-    newptr = mspace_realloc(shmem_heap_mspace, ptr, size);
+    shmem_barrier_all(); /* entry: the existing block is about to change */
+    void *newptr = mspace_realloc(shmem_heap_mspace, ptr, size);
     shmem_barrier_all();
     return newptr;
 }
 
 void shmem_free(void *ptr)
 {
+    if (ptr == NULL) return;
     shmem_barrier_all();
-    if (ptr != NULL) {
-        mspace_free(shmem_heap_mspace, ptr);
-    }
+    mspace_free(shmem_heap_mspace, ptr);
 }
 
 /* Deprecated pre-1.2 names */
