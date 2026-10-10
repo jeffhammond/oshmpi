@@ -102,6 +102,9 @@ void *shmem_ptr(OSHMPI_CONST void *target, int pe);
 void shmem_info_get_version(int *major, int *minor);
 void shmem_info_get_name(char *name);
 
+/* 8.? Profiling interface */
+void shmem_pcontrol(int level, ...);
+
 /* 8.2: Memory Management Routines */
 void *shmem_malloc(size_t size);
 void *shmem_calloc(size_t count, size_t size);

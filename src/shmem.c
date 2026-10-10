@@ -51,6 +51,12 @@ void shmem_global_exit(int status)
     return;
 }
 
+/* No profiling is implemented; the level is accepted and ignored, as the spec permits. */
+void shmem_pcontrol(int level, ...)
+{
+    (void)level;
+}
+
 void shmem_info_get_version(int *major, int *minor)
 {
     *major = SHMEM_MAJOR_VERSION;
