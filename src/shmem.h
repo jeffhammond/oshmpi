@@ -81,7 +81,7 @@
 
 #define  SHMEM_MAJOR_VERSION 1
 #define _SHMEM_MAJOR_VERSION SHMEM_MAJOR_VERSION
-#define  SHMEM_MINOR_VERSION 3
+#define  SHMEM_MINOR_VERSION 4
 #define _SHMEM_MINOR_VERSION SHMEM_MINOR_VERSION
 #define  SHMEM_MAX_NAME_LEN  256
 #define _SHMEM_MAX_NAME_LEN  SHMEM_MAX_NAME_LEN
@@ -714,5 +714,7 @@ void shmem_complexd_get(double complex * target,
  /* Portals extensions */
 double shmem_wtime(void);
 char* shmem_nodename(void);
+
+#include "shmem14.h"
 
 #endif /* OSHMPI_SHMEM_H */

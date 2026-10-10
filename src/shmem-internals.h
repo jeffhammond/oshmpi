@@ -126,6 +126,9 @@ void oshmpi_add(MPI_Datatype mpi_type, void *remote, const void *input, int pe);
 void oshmpi_fadd(MPI_Datatype mpi_type, void *output, void *remote, const void *input, int pe);
 void oshmpi_fetch(MPI_Datatype mpi_type, void *output, OSHMPI_CONST void *remote, int pe);
 void oshmpi_set(MPI_Datatype mpi_type, void *remote, const void *input, int pe);
+/* bitwise (and other MPI_Op) atomics */
+void oshmpi_op(MPI_Datatype mpi_type, MPI_Op op, void *remote, const void *input, int pe);
+void oshmpi_fetch_op(MPI_Datatype mpi_type, MPI_Op op, void *output, void *remote, const void *input, int pe);
 
 void oshmpi_create_comm(int pe_start, int log_pe_stride, int pe_size,
                         MPI_Comm * comm, MPI_Group * strided_group);

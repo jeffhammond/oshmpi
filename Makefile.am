@@ -9,6 +9,7 @@ lib_LTLIBRARIES = libshmem.la
 
 libshmem_la_SOURCES = src/shmem-internals.c      \
                       src/shmem.c                \
+                      src/shmem14.c              \
                       src/oshmpi-mcs-lock.c      \
                       src/dlmalloc.c             \
                       src/shmemx-counting-put.c  \
@@ -17,6 +18,7 @@ libshmem_la_SOURCES = src/shmem-internals.c      \
 #libshmem_la_LDFLAGS = -version-info $(libshmem_abi_version)
 
 include_HEADERS = src/shmem.h \
+		  src/shmem14.h \
 		  src/shmemx.h \
 		  src/shmem-internals.h \
 		  src/shmem-wait.h \

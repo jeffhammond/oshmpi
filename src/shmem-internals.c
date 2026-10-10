@@ -1171,6 +1171,36 @@ void oshmpi_add(MPI_Datatype mpi_type, void *remote, const void *input, int pe)
     return;
 }
 
+void oshmpi_op(MPI_Datatype mpi_type, MPI_Op op, void *remote, const void *input, int pe)
+{
+    enum shmem_window_id_e win_id;
+    shmem_offset_t win_offset;
+
+    if (oshmpi_window_offset(remote, pe, &win_id, &win_offset)) {
+        oshmpi_abort(pe, "oshmpi_window_offset failed to find atomic op remote");
+    }
+
+    MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
+
+    MPI_Accumulate(input, 1, mpi_type, pe, win_offset, 1, mpi_type, op, win);
+    MPI_Win_flush_local(pe, win);
+    return;
+}
+void oshmpi_fetch_op(MPI_Datatype mpi_type, MPI_Op op, void *output, void *remote, const void *input, int pe)
+{
+    enum shmem_window_id_e win_id;
+    shmem_offset_t win_offset;
+
+    if (oshmpi_window_offset(remote, pe, &win_id, &win_offset)) {
+        oshmpi_abort(pe, "oshmpi_window_offset failed to find fetch atomic op remote");
+    }
+
+    MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
+
+    MPI_Fetch_and_op(input, output, mpi_type, pe, win_offset, op, win);
+    MPI_Win_flush(pe, win);
+    return;
+}
 void oshmpi_fadd(MPI_Datatype mpi_type, void *output, void *remote, const void *input, int pe)
 {
     enum shmem_window_id_e win_id;
