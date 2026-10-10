@@ -240,7 +240,7 @@ OSHMPI_BITWISE_AMO_TYPES(OSHMPI_DEFINE_AMO_BITWISE)
 
 /* test: a single nonblocking check of the comparison; 1 if it holds, else 0. */
 #define OSHMPI_DEFINE_TEST(N, T)                                                               \
-int shmem_##N##_test(volatile T *ivar, int cmp, T cmp_value)                                   \
+int shmem_##N##_test(T *ivar, int cmp, T cmp_value)                                   \
 {                                                                                              \
     T cur;                                                                                     \
     oshmpi_fetch(OSHMPI_MT_##N, &cur, (const T *)ivar, shmem_world_rank);                      \
@@ -251,7 +251,7 @@ int shmem_##N##_test(volatile T *ivar, int cmp, T cmp_value)                    
 
 /* wait_until for the types that do not already have it. */
 #define OSHMPI_DEFINE_WAIT_UNTIL(N, T)                                                         \
-void shmem_##N##_wait_until(volatile T *ivar, int cmp, T cmp_value)                            \
+void shmem_##N##_wait_until(T *ivar, int cmp, T cmp_value)                            \
 { T t; SHMEM_WAIT_UNTIL(ivar, cmp, cmp_value, t, OSHMPI_MT_##N); }
 
 #define OSHMPI_SYNC_TYPES_NEW14(X) \
@@ -271,9 +271,11 @@ OSHMPI_SYNC_TYPES_NEW14(OSHMPI_DEFINE_WAIT_UNTIL)
 
 /* ---- collective synchronization ---------------------------------------- */
 
-/* Unlike shmem_barrier, sync does not order or complete outstanding puts. */
+/* Unlike shmem_barrier, sync ensures completion and visibility of previously issued
+ * memory stores but not of remote memory updates issued through OpenSHMEM routines. */
 void shmem_sync(int PE_start, int logPE_stride, int PE_size, long *pSync)
 {
+    oshmpi_local_sync();
     oshmpi_set_psync(SHMEM_BARRIER_SYNC_SIZE, SHMEM_SYNC_VALUE, pSync);
     oshmpi_coll(SHMEM_BARRIER, MPI_DATATYPE_NULL, MPI_OP_NULL, NULL, NULL, 0, 0, 0, -1,
                 PE_start, logPE_stride, PE_size);
@@ -281,5 +283,6 @@ void shmem_sync(int PE_start, int logPE_stride, int PE_size, long *pSync)
 
 void shmem_sync_all(void)
 {
+    oshmpi_local_sync();
     MPI_Barrier(SHMEM_COMM_WORLD);
 }

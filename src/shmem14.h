@@ -210,8 +210,8 @@ OSHMPI_BITWISE_AMO_TYPES(OSHMPI_DECL_AMO_BITWISE)
 /* 9.9 Point-to-point synchronization: test.  (wait_until is declared in shmem.h
  * for the original types and here for the rest.) */
 #define OSHMPI_DECL_SYNC(N, T)                                                                 \
-    void shmem_##N##_wait_until(volatile T *ivar, int cmp, T cmp_value);                       \
-    int  shmem_##N##_test(volatile T *ivar, int cmp, T cmp_value);
+    void shmem_##N##_wait_until(T *ivar, int cmp, T cmp_value);                       \
+    int  shmem_##N##_test(T *ivar, int cmp, T cmp_value);
 
 OSHMPI_SYNC_TYPES(OSHMPI_DECL_SYNC)
 

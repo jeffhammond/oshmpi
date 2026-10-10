@@ -48,7 +48,8 @@
 #endif
 
 #define OSHMPI_CONST const
-#define OSHMPI_VOLATILE volatile
+/* OpenSHMEM 1.3 added volatile to the wait and lock arguments; 1.4 removed it again. */
+#define OSHMPI_VOLATILE
 #define OSHMPI_DEPRECATED __attribute__ ((deprecated))
 
 /* -- end changes -- */
@@ -77,6 +78,8 @@
 #define  SHMEM_COLLECT_SYNC_SIZE 2
 #define _SHMEM_ALLTOALL_SYNC_SIZE 1
 #define  SHMEM_ALLTOALL_SYNC_SIZE 1
+/* length of a pSync array usable with any collective: the largest of the above */
+#define  SHMEM_SYNC_SIZE 2
 #define _SHMEM_ALLTOALLS_SYNC_SIZE 1
 #define  SHMEM_ALLTOALLS_SYNC_SIZE 1
 #define _SHMEM_REDUCE_MIN_WRKDATA_SIZE 1
@@ -105,7 +108,7 @@ void shmem_init(void);
 int  shmem_init_thread(int requested, int *provided);
 void shmem_query_thread(int *provided);
 void shmem_finalize(void);
-void shmem_global_exit(int status);
+_Noreturn void shmem_global_exit(int status);
 int shmem_n_pes(void);
 int shmem_my_pe(void);
 

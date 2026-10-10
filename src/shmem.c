@@ -69,12 +69,14 @@ void shmem_finalize(void)
     return;
 }
 
-void shmem_global_exit(int status)
+_Noreturn void shmem_global_exit(int status)
 {
     /* MPI_Abort with an error code of 0 does not reliably terminate the other
-     * processes, but shmem_global_exit must end the whole job, so use a non-zero code. */
+     * processes (a deviation from the spec, which says the exit status is one of
+     * the values passed), so a status of 0 is reported as 1. */
+    fflush(NULL);
     oshmpi_abort(status != 0 ? status : 1, NULL);
-    return;
+    exit(status != 0 ? status : 1); /* MPI_Abort does not return */
 }
 
 /* No profiling is implemented; the level is accepted and ignored, as the spec permits. */
