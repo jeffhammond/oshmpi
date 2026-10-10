@@ -99,13 +99,9 @@ extern MPI_Win shmem_mpmd_appnum_win;
 
 static inline int OSHMPI_Type_size(MPI_Datatype mpi_type)
 {
-#ifdef MPICH
-    return (((mpi_type)&0x0000ff00)>>8);
-#else
     int type_size;
     MPI_Type_size(mpi_type, &type_size);
     return type_size;
-#endif
 }
 
 /*****************************************************************/
