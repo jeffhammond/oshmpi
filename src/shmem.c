@@ -48,12 +48,13 @@ static int oshmpi_mpi_thread_level(int shmem_level)
     }
 }
 
-void shmem_init_thread(int requested, int *provided)
+/* Returns 0 on success; the level actually provided is returned in *provided. */
+int shmem_init_thread(int requested, int *provided)
 {
     oshmpi_initialize(oshmpi_mpi_thread_level(requested));
     *provided = oshmpi_query_thread();
     atexit(oshmpi_finalize);
-    return;
+    return 0;
 }
 
 void shmem_query_thread(int *provided)

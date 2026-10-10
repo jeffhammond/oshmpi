@@ -5,7 +5,8 @@
 int main(void)
 {
     int errs = 0, provided = -1, queried = -1;
-    shmem_init_thread(SHMEM_THREAD_MULTIPLE, &provided);
+    int rc = shmem_init_thread(SHMEM_THREAD_MULTIPLE, &provided);
+    if (rc != 0) { printf("shmem_init_thread returned %d\n", rc); errs++; }
     shmem_query_thread(&queried);
     int me = shmem_my_pe();
 
