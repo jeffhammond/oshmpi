@@ -12,6 +12,12 @@ static size_t   ssz[2];
 static double   sdb[2];
 static short    ssh[2];
 static unsigned short sush[2];
+static int32_t  bi32;
+static int64_t  bi64;
+static uint32_t bu32;
+static int      bint;
+static long     blong;
+static long long bllong;
 
 int main(void)
 {
@@ -59,6 +65,23 @@ int main(void)
     CHECK(shmem_atomic_compare_swap(&si32[1], 0, 5, me) == 0, "generic cswap");
     shmem_atomic_or(&su64[0], (uint64_t)1 << 40, me);
     CHECK((su64[0] >> 40) & 1, "generic or");
+
+    /* bitwise AMOs on the signed and exact-width types (local PE, with and without ctx) */
+    bi32 = 0xF0; bi64 = 0xF0; bu32 = 0xF0; bint = 0xF0; blong = 0xF0; bllong = 0xF0;
+    shmem_barrier_all();
+    shmem_atomic_and(&bi32, 0x3C, me);
+    CHECK(bi32 == 0x30, "generic and int32_t");
+    CHECK(shmem_atomic_fetch_or(&bi32, 0x0F, me) == 0x30 && bi32 == 0x3F, "generic fetch_or int32_t");
+    shmem_atomic_xor(&bi64, 0xFF, me);
+    CHECK(bi64 == 0x0F, "generic xor int64_t");
+    CHECK(shmem_atomic_fetch_and(&bi64, 0x03, me) == 0x0F && bi64 == 0x03, "generic fetch_and int64_t");
+    shmem_atomic_or(&bu32, 0x0F, me);
+    CHECK(bu32 == 0xFF, "generic or uint32_t");
+    CHECK(shmem_atomic_fetch_xor(ctx, &bint, 0xFF, me) == 0xF0 && bint == 0x0F, "generic ctx fetch_xor int");
+    shmem_atomic_and(ctx, &blong, 0x30, me);
+    CHECK(blong == 0x30, "generic ctx and long");
+    shmem_atomic_or(ctx, &bllong, 0x100, me);
+    CHECK(bllong == 0x1F0, "generic ctx or long long");
 
     /* wait_until / test */
     shmem_barrier_all();

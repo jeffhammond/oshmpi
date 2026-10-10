@@ -527,93 +527,255 @@
 #define shmem_atomic_add(...) \
     OSHMPI_PICK_3(__VA_ARGS__, OSHMPI_G_atomic_add_CTX, OSHMPI_G_atomic_add_NOCTX, 0)(__VA_ARGS__)
 
+#if __SIZEOF_LONG__ == 8
 #define OSHMPI_G_atomic_fetch_and_NOCTX(dest, value, pe) \
     _Generic(&(dest)[0], \
              unsigned int *: shmem_uint_atomic_fetch_and, \
              unsigned long *: shmem_ulong_atomic_fetch_and, \
-             unsigned long long *: shmem_ulonglong_atomic_fetch_and \
+             unsigned long long *: shmem_ulonglong_atomic_fetch_and, \
+             int *: shmem_int32_atomic_fetch_and, \
+             long long *: shmem_int64_atomic_fetch_and, \
+             long *: shmem_int64_atomic_fetch_and \
             )(dest, value, pe)
 #define OSHMPI_G_atomic_fetch_and_CTX(ctx, dest, value, pe) \
     _Generic(&(dest)[0], \
              unsigned int *: shmem_ctx_uint_atomic_fetch_and, \
              unsigned long *: shmem_ctx_ulong_atomic_fetch_and, \
-             unsigned long long *: shmem_ctx_ulonglong_atomic_fetch_and \
+             unsigned long long *: shmem_ctx_ulonglong_atomic_fetch_and, \
+             int *: shmem_ctx_int32_atomic_fetch_and, \
+             long long *: shmem_ctx_int64_atomic_fetch_and, \
+             long *: shmem_ctx_int64_atomic_fetch_and \
             )(ctx, dest, value, pe)
+#else
+#define OSHMPI_G_atomic_fetch_and_NOCTX(dest, value, pe) \
+    _Generic(&(dest)[0], \
+             unsigned int *: shmem_uint_atomic_fetch_and, \
+             unsigned long *: shmem_ulong_atomic_fetch_and, \
+             unsigned long long *: shmem_ulonglong_atomic_fetch_and, \
+             int *: shmem_int32_atomic_fetch_and, \
+             long long *: shmem_int64_atomic_fetch_and, \
+             long *: shmem_int32_atomic_fetch_and \
+            )(dest, value, pe)
+#define OSHMPI_G_atomic_fetch_and_CTX(ctx, dest, value, pe) \
+    _Generic(&(dest)[0], \
+             unsigned int *: shmem_ctx_uint_atomic_fetch_and, \
+             unsigned long *: shmem_ctx_ulong_atomic_fetch_and, \
+             unsigned long long *: shmem_ctx_ulonglong_atomic_fetch_and, \
+             int *: shmem_ctx_int32_atomic_fetch_and, \
+             long long *: shmem_ctx_int64_atomic_fetch_and, \
+             long *: shmem_ctx_int32_atomic_fetch_and \
+            )(ctx, dest, value, pe)
+#endif
 #define shmem_atomic_fetch_and(...) \
     OSHMPI_PICK_3(__VA_ARGS__, OSHMPI_G_atomic_fetch_and_CTX, OSHMPI_G_atomic_fetch_and_NOCTX, 0)(__VA_ARGS__)
 
+#if __SIZEOF_LONG__ == 8
 #define OSHMPI_G_atomic_and_NOCTX(dest, value, pe) \
     _Generic(&(dest)[0], \
              unsigned int *: shmem_uint_atomic_and, \
              unsigned long *: shmem_ulong_atomic_and, \
-             unsigned long long *: shmem_ulonglong_atomic_and \
+             unsigned long long *: shmem_ulonglong_atomic_and, \
+             int *: shmem_int32_atomic_and, \
+             long long *: shmem_int64_atomic_and, \
+             long *: shmem_int64_atomic_and \
             )(dest, value, pe)
 #define OSHMPI_G_atomic_and_CTX(ctx, dest, value, pe) \
     _Generic(&(dest)[0], \
              unsigned int *: shmem_ctx_uint_atomic_and, \
              unsigned long *: shmem_ctx_ulong_atomic_and, \
-             unsigned long long *: shmem_ctx_ulonglong_atomic_and \
+             unsigned long long *: shmem_ctx_ulonglong_atomic_and, \
+             int *: shmem_ctx_int32_atomic_and, \
+             long long *: shmem_ctx_int64_atomic_and, \
+             long *: shmem_ctx_int64_atomic_and \
             )(ctx, dest, value, pe)
+#else
+#define OSHMPI_G_atomic_and_NOCTX(dest, value, pe) \
+    _Generic(&(dest)[0], \
+             unsigned int *: shmem_uint_atomic_and, \
+             unsigned long *: shmem_ulong_atomic_and, \
+             unsigned long long *: shmem_ulonglong_atomic_and, \
+             int *: shmem_int32_atomic_and, \
+             long long *: shmem_int64_atomic_and, \
+             long *: shmem_int32_atomic_and \
+            )(dest, value, pe)
+#define OSHMPI_G_atomic_and_CTX(ctx, dest, value, pe) \
+    _Generic(&(dest)[0], \
+             unsigned int *: shmem_ctx_uint_atomic_and, \
+             unsigned long *: shmem_ctx_ulong_atomic_and, \
+             unsigned long long *: shmem_ctx_ulonglong_atomic_and, \
+             int *: shmem_ctx_int32_atomic_and, \
+             long long *: shmem_ctx_int64_atomic_and, \
+             long *: shmem_ctx_int32_atomic_and \
+            )(ctx, dest, value, pe)
+#endif
 #define shmem_atomic_and(...) \
     OSHMPI_PICK_3(__VA_ARGS__, OSHMPI_G_atomic_and_CTX, OSHMPI_G_atomic_and_NOCTX, 0)(__VA_ARGS__)
 
+#if __SIZEOF_LONG__ == 8
 #define OSHMPI_G_atomic_fetch_or_NOCTX(dest, value, pe) \
     _Generic(&(dest)[0], \
              unsigned int *: shmem_uint_atomic_fetch_or, \
              unsigned long *: shmem_ulong_atomic_fetch_or, \
-             unsigned long long *: shmem_ulonglong_atomic_fetch_or \
+             unsigned long long *: shmem_ulonglong_atomic_fetch_or, \
+             int *: shmem_int32_atomic_fetch_or, \
+             long long *: shmem_int64_atomic_fetch_or, \
+             long *: shmem_int64_atomic_fetch_or \
             )(dest, value, pe)
 #define OSHMPI_G_atomic_fetch_or_CTX(ctx, dest, value, pe) \
     _Generic(&(dest)[0], \
              unsigned int *: shmem_ctx_uint_atomic_fetch_or, \
              unsigned long *: shmem_ctx_ulong_atomic_fetch_or, \
-             unsigned long long *: shmem_ctx_ulonglong_atomic_fetch_or \
+             unsigned long long *: shmem_ctx_ulonglong_atomic_fetch_or, \
+             int *: shmem_ctx_int32_atomic_fetch_or, \
+             long long *: shmem_ctx_int64_atomic_fetch_or, \
+             long *: shmem_ctx_int64_atomic_fetch_or \
             )(ctx, dest, value, pe)
+#else
+#define OSHMPI_G_atomic_fetch_or_NOCTX(dest, value, pe) \
+    _Generic(&(dest)[0], \
+             unsigned int *: shmem_uint_atomic_fetch_or, \
+             unsigned long *: shmem_ulong_atomic_fetch_or, \
+             unsigned long long *: shmem_ulonglong_atomic_fetch_or, \
+             int *: shmem_int32_atomic_fetch_or, \
+             long long *: shmem_int64_atomic_fetch_or, \
+             long *: shmem_int32_atomic_fetch_or \
+            )(dest, value, pe)
+#define OSHMPI_G_atomic_fetch_or_CTX(ctx, dest, value, pe) \
+    _Generic(&(dest)[0], \
+             unsigned int *: shmem_ctx_uint_atomic_fetch_or, \
+             unsigned long *: shmem_ctx_ulong_atomic_fetch_or, \
+             unsigned long long *: shmem_ctx_ulonglong_atomic_fetch_or, \
+             int *: shmem_ctx_int32_atomic_fetch_or, \
+             long long *: shmem_ctx_int64_atomic_fetch_or, \
+             long *: shmem_ctx_int32_atomic_fetch_or \
+            )(ctx, dest, value, pe)
+#endif
 #define shmem_atomic_fetch_or(...) \
     OSHMPI_PICK_3(__VA_ARGS__, OSHMPI_G_atomic_fetch_or_CTX, OSHMPI_G_atomic_fetch_or_NOCTX, 0)(__VA_ARGS__)
 
+#if __SIZEOF_LONG__ == 8
 #define OSHMPI_G_atomic_or_NOCTX(dest, value, pe) \
     _Generic(&(dest)[0], \
              unsigned int *: shmem_uint_atomic_or, \
              unsigned long *: shmem_ulong_atomic_or, \
-             unsigned long long *: shmem_ulonglong_atomic_or \
+             unsigned long long *: shmem_ulonglong_atomic_or, \
+             int *: shmem_int32_atomic_or, \
+             long long *: shmem_int64_atomic_or, \
+             long *: shmem_int64_atomic_or \
             )(dest, value, pe)
 #define OSHMPI_G_atomic_or_CTX(ctx, dest, value, pe) \
     _Generic(&(dest)[0], \
              unsigned int *: shmem_ctx_uint_atomic_or, \
              unsigned long *: shmem_ctx_ulong_atomic_or, \
-             unsigned long long *: shmem_ctx_ulonglong_atomic_or \
+             unsigned long long *: shmem_ctx_ulonglong_atomic_or, \
+             int *: shmem_ctx_int32_atomic_or, \
+             long long *: shmem_ctx_int64_atomic_or, \
+             long *: shmem_ctx_int64_atomic_or \
             )(ctx, dest, value, pe)
+#else
+#define OSHMPI_G_atomic_or_NOCTX(dest, value, pe) \
+    _Generic(&(dest)[0], \
+             unsigned int *: shmem_uint_atomic_or, \
+             unsigned long *: shmem_ulong_atomic_or, \
+             unsigned long long *: shmem_ulonglong_atomic_or, \
+             int *: shmem_int32_atomic_or, \
+             long long *: shmem_int64_atomic_or, \
+             long *: shmem_int32_atomic_or \
+            )(dest, value, pe)
+#define OSHMPI_G_atomic_or_CTX(ctx, dest, value, pe) \
+    _Generic(&(dest)[0], \
+             unsigned int *: shmem_ctx_uint_atomic_or, \
+             unsigned long *: shmem_ctx_ulong_atomic_or, \
+             unsigned long long *: shmem_ctx_ulonglong_atomic_or, \
+             int *: shmem_ctx_int32_atomic_or, \
+             long long *: shmem_ctx_int64_atomic_or, \
+             long *: shmem_ctx_int32_atomic_or \
+            )(ctx, dest, value, pe)
+#endif
 #define shmem_atomic_or(...) \
     OSHMPI_PICK_3(__VA_ARGS__, OSHMPI_G_atomic_or_CTX, OSHMPI_G_atomic_or_NOCTX, 0)(__VA_ARGS__)
 
+#if __SIZEOF_LONG__ == 8
 #define OSHMPI_G_atomic_fetch_xor_NOCTX(dest, value, pe) \
     _Generic(&(dest)[0], \
              unsigned int *: shmem_uint_atomic_fetch_xor, \
              unsigned long *: shmem_ulong_atomic_fetch_xor, \
-             unsigned long long *: shmem_ulonglong_atomic_fetch_xor \
+             unsigned long long *: shmem_ulonglong_atomic_fetch_xor, \
+             int *: shmem_int32_atomic_fetch_xor, \
+             long long *: shmem_int64_atomic_fetch_xor, \
+             long *: shmem_int64_atomic_fetch_xor \
             )(dest, value, pe)
 #define OSHMPI_G_atomic_fetch_xor_CTX(ctx, dest, value, pe) \
     _Generic(&(dest)[0], \
              unsigned int *: shmem_ctx_uint_atomic_fetch_xor, \
              unsigned long *: shmem_ctx_ulong_atomic_fetch_xor, \
-             unsigned long long *: shmem_ctx_ulonglong_atomic_fetch_xor \
+             unsigned long long *: shmem_ctx_ulonglong_atomic_fetch_xor, \
+             int *: shmem_ctx_int32_atomic_fetch_xor, \
+             long long *: shmem_ctx_int64_atomic_fetch_xor, \
+             long *: shmem_ctx_int64_atomic_fetch_xor \
             )(ctx, dest, value, pe)
+#else
+#define OSHMPI_G_atomic_fetch_xor_NOCTX(dest, value, pe) \
+    _Generic(&(dest)[0], \
+             unsigned int *: shmem_uint_atomic_fetch_xor, \
+             unsigned long *: shmem_ulong_atomic_fetch_xor, \
+             unsigned long long *: shmem_ulonglong_atomic_fetch_xor, \
+             int *: shmem_int32_atomic_fetch_xor, \
+             long long *: shmem_int64_atomic_fetch_xor, \
+             long *: shmem_int32_atomic_fetch_xor \
+            )(dest, value, pe)
+#define OSHMPI_G_atomic_fetch_xor_CTX(ctx, dest, value, pe) \
+    _Generic(&(dest)[0], \
+             unsigned int *: shmem_ctx_uint_atomic_fetch_xor, \
+             unsigned long *: shmem_ctx_ulong_atomic_fetch_xor, \
+             unsigned long long *: shmem_ctx_ulonglong_atomic_fetch_xor, \
+             int *: shmem_ctx_int32_atomic_fetch_xor, \
+             long long *: shmem_ctx_int64_atomic_fetch_xor, \
+             long *: shmem_ctx_int32_atomic_fetch_xor \
+            )(ctx, dest, value, pe)
+#endif
 #define shmem_atomic_fetch_xor(...) \
     OSHMPI_PICK_3(__VA_ARGS__, OSHMPI_G_atomic_fetch_xor_CTX, OSHMPI_G_atomic_fetch_xor_NOCTX, 0)(__VA_ARGS__)
 
+#if __SIZEOF_LONG__ == 8
 #define OSHMPI_G_atomic_xor_NOCTX(dest, value, pe) \
     _Generic(&(dest)[0], \
              unsigned int *: shmem_uint_atomic_xor, \
              unsigned long *: shmem_ulong_atomic_xor, \
-             unsigned long long *: shmem_ulonglong_atomic_xor \
+             unsigned long long *: shmem_ulonglong_atomic_xor, \
+             int *: shmem_int32_atomic_xor, \
+             long long *: shmem_int64_atomic_xor, \
+             long *: shmem_int64_atomic_xor \
             )(dest, value, pe)
 #define OSHMPI_G_atomic_xor_CTX(ctx, dest, value, pe) \
     _Generic(&(dest)[0], \
              unsigned int *: shmem_ctx_uint_atomic_xor, \
              unsigned long *: shmem_ctx_ulong_atomic_xor, \
-             unsigned long long *: shmem_ctx_ulonglong_atomic_xor \
+             unsigned long long *: shmem_ctx_ulonglong_atomic_xor, \
+             int *: shmem_ctx_int32_atomic_xor, \
+             long long *: shmem_ctx_int64_atomic_xor, \
+             long *: shmem_ctx_int64_atomic_xor \
             )(ctx, dest, value, pe)
+#else
+#define OSHMPI_G_atomic_xor_NOCTX(dest, value, pe) \
+    _Generic(&(dest)[0], \
+             unsigned int *: shmem_uint_atomic_xor, \
+             unsigned long *: shmem_ulong_atomic_xor, \
+             unsigned long long *: shmem_ulonglong_atomic_xor, \
+             int *: shmem_int32_atomic_xor, \
+             long long *: shmem_int64_atomic_xor, \
+             long *: shmem_int32_atomic_xor \
+            )(dest, value, pe)
+#define OSHMPI_G_atomic_xor_CTX(ctx, dest, value, pe) \
+    _Generic(&(dest)[0], \
+             unsigned int *: shmem_ctx_uint_atomic_xor, \
+             unsigned long *: shmem_ctx_ulong_atomic_xor, \
+             unsigned long long *: shmem_ctx_ulonglong_atomic_xor, \
+             int *: shmem_ctx_int32_atomic_xor, \
+             long long *: shmem_ctx_int64_atomic_xor, \
+             long *: shmem_ctx_int32_atomic_xor \
+            )(ctx, dest, value, pe)
+#endif
 #define shmem_atomic_xor(...) \
     OSHMPI_PICK_3(__VA_ARGS__, OSHMPI_G_atomic_xor_CTX, OSHMPI_G_atomic_xor_NOCTX, 0)(__VA_ARGS__)
 

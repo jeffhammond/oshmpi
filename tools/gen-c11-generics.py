@@ -3,7 +3,8 @@
 
 Selection is on the basic C types only: the fixed-width, size_t and ptrdiff_t types
 alias a basic type on every platform (and duplicate _Generic associations are an
-error), so this covers them all.  Each macro also has a context form with the
+error), so this covers them all.  The exception is the signed bitwise AMOs, which only
+exist as int32/int64 functions (see BIT below).  Each macro also has a context form with the
 context as its first argument, chosen by argument count.
 
 Usage: tools/gen-c11-generics.py > src/shmem14-generic.h
@@ -16,7 +17,14 @@ RMA   = [('float','float'),('double','double'),('longdouble','long double'),('ch
 AMO   = [('int','int'),('long','long'),('longlong','long long'),
          ('uint','unsigned int'),('ulong','unsigned long'),('ulonglong','unsigned long long')]
 EXT   = AMO + [('float','float'),('double','double')]
-BIT   = [('uint','unsigned int'),('ulong','unsigned long'),('ulonglong','unsigned long long')]
+# The 1.4 bitwise AMOs exist for uint, ulong, ulonglong and the exact-width types
+# int32/int64/uint32/uint64.  The unsigned exact-width types alias the unsigned basic
+# types, but the signed ones have no basic-type function, so int selects int32 and
+# long/long long select int64 (long selects int32 where it is 32 bits wide).
+BIT_COMMON = [('uint','unsigned int'),('ulong','unsigned long'),('ulonglong','unsigned long long'),
+              ('int32','int'),('int64','long long')]
+BIT   = BIT_COMMON + [('int64','long')]
+BIT_ILP32 = BIT_COMMON + [('int32','long')]
 SYNC  = [('short','short'),('int','int'),('long','long'),('longlong','long long'),
          ('ushort','unsigned short'),('uint','unsigned int'),('ulong','unsigned long'),
          ('ulonglong','unsigned long long')]
@@ -68,7 +76,7 @@ def assoc(prefix, ctx_prefix, types, quals, kind):
             lines.append('             %s%s *: %s_%s_%s' % (q, t, prefix, n, kind))
     return lines
 
-for name, suf, args, types, quals in OPS:
+def emit(name, suf, args, types, quals):
     k = len(args)
     ptr = args[0]
     a = ', '.join(args)
@@ -82,6 +90,17 @@ for name, suf, args, types, quals in OPS:
     clines = [('             %s%s *: shmem_ctx_%s_%s' % (q, t, n, suf)) for n, t in types for q in quals]
     out.append('#define OSHMPI_G_%s_CTX(%s) \\\n    _Generic(&(%s)[0], \\\n%s \\\n            )(%s)\n' %
                (name, ca, ptr, ', \\\n'.join(clines), ca))
+
+for name, suf, args, types, quals in OPS:
+    k = len(args)
+    if types is BIT:
+        out.append('#if __SIZEOF_LONG__ == 8\n')
+        emit(name, suf, args, BIT, quals)
+        out.append('#else\n')
+        emit(name, suf, args, BIT_ILP32, quals)
+        out.append('#endif\n')
+    else:
+        emit(name, suf, args, types, quals)
     out.append('#define shmem_%s(...) \\\n    OSHMPI_PICK_%d(__VA_ARGS__, OSHMPI_G_%s_CTX, OSHMPI_G_%s_NOCTX, 0)(__VA_ARGS__)\n\n' %
                (name, k, name, name))
 
