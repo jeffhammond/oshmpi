@@ -23,6 +23,9 @@ Requirements: a C11 compiler (checked by `configure`) and MPI-3.
 | C11 type-generic bindings (RMA, AMO, `wait_until`, `test`, with optional context argument) | 1.3/1.4 | `tools/gen-c11-generics.py`; selects on basic C types |
 | `SHMEM_SYMMETRIC_SIZE`, `SHMEM_VERSION`, `SHMEM_INFO` | 1.4 | `SHMEM_DEBUG` accepted and ignored; `SMA_*` and other vendor names still read |
 | `shmem_pcontrol` | 1.5 | no-op |
+| `<mpp/shmem.h>`, `<mpp/shmemx.h>` | 1.1 (deprecated) | forwarding headers |
+| `extern "C"` linkage in the headers; `_Complex` instead of `complex` in the reduction prototypes | 1.4 | the library can be called from C++ |
+| deprecation attributes on the pre-1.4 AMO and `shmem_wait` routines; `SMA_*` variables | 1.4 | |
 
 ## Not implemented (no third-party test can validate it here, or not yet needed)
 
@@ -43,6 +46,14 @@ The Sandia tests that need these do not compile yet; the list is in `tests/third
 
 ## Known test failures (not believed to be OSHMPI bugs)
 
-See `tests/third_party/STATUS.md`: the Sandia `global_exit` test hangs under MPICH/Hydra with the libfabric `sockets` provider
-(launcher does not reap the PEs after `MPI_Abort`), and the UH put/get tests assume a 16-byte `long double`.
-Both are to be retested on a different system.
+See `tests/third_party/STATUS.md`.  The UH put/get tests assume a 16-byte `long double` (test bug), the osa-testcodes
+programs are deliberately buggy, and the Mellanox `basic:shmalloc` case reallocates a freed pointer (undefined behavior;
+dlmalloc aborts).  With MPICH, use `FI_PROVIDER=tcp`: the libfabric `sockets` provider makes many programs hang in
+`MPI_Finalize`, which is a provider problem, not an OSHMPI one.
+
+## Bugs found and fixed by the third-party suites
+
+`and_to_all` used a logical instead of a bitwise AND; `PE_root` of the broadcasts was treated as a world rank instead of an
+ordinal in the active set; `shmem_alltoalls32` moved 8-byte elements and the strided datatypes had the wrong extent;
+the `alltoall*` routines initialized a `pSync` array larger than the one the spec gives them; `shmem_global_exit` aborted a
+duplicated communicator, which MPICH did not propagate; `shmem_finalize` finalized an MPI that the user had initialized.

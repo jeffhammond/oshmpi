@@ -1444,21 +1444,27 @@ void oshmpi_coll(enum shmem_coll_type_e coll, MPI_Datatype mpi_type, MPI_Op redu
                 int target_stride = (int) target_ptrdiff;
                 int source_stride = (int) source_ptrdiff;
 
-                MPI_Datatype source_type;
-                MPI_Type_vector(count, 1, source_stride, mpi_type, &source_type);
-                MPI_Type_commit(&source_type);
+                /* PE k's block for PE l is the nelems elements starting at element
+                 * l*nelems*sst of the source (and lands at k*nelems*dst in the target):
+                 * one strided block, whose extent must span nelems*stride elements
+                 * so that consecutive blocks are adjacent in the array. */
+                MPI_Aint lb, elem_extent;
+                MPI_Type_get_extent(mpi_type, &lb, &elem_extent);
 
-                MPI_Datatype target_type;
-                if (target_stride!=source_stride) {
-                    MPI_Type_vector(count, 1, target_stride, mpi_type, &target_type);
-                    MPI_Type_commit(&target_type);
-                } else {
-                    target_type = source_type;
-                }
-                MPI_Alltoall(source, count, source_type, target, count, target_type, comm);
-                if (target_stride!=source_stride) {
-                    MPI_Type_free(&target_type);
-                }
+                MPI_Datatype source_type, target_type, tmp;
+                MPI_Type_vector(count, 1, source_stride, mpi_type, &tmp);
+                MPI_Type_create_resized(tmp, 0, (MPI_Aint)count * source_stride * elem_extent, &source_type);
+                MPI_Type_commit(&source_type);
+                MPI_Type_free(&tmp);
+
+                MPI_Type_vector(count, 1, target_stride, mpi_type, &tmp);
+                MPI_Type_create_resized(tmp, 0, (MPI_Aint)count * target_stride * elem_extent, &target_type);
+                MPI_Type_commit(&target_type);
+                MPI_Type_free(&tmp);
+
+                MPI_Alltoall(source, 1, source_type, target, 1, target_type, comm);
+
+                MPI_Type_free(&target_type);
                 MPI_Type_free(&source_type);
             }
             break;

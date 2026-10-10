@@ -149,9 +149,9 @@ int shmem_addr_accessible(OSHMPI_CONST void *addr, int pe)
 void *shmem_align(size_t alignment, size_t size)
 {
     if (size == 0) return NULL;
-    /* undefined behavior in the spec for these; a null pointer is the safest answer */
-    void *ptr = (alignment == 0 || (alignment & (alignment - 1)) != 0)
-              ? NULL : mspace_memalign(shmem_heap_mspace, alignment, size);
+    /* A zero alignment is undefined in the spec; return a null pointer.  Other values that are
+     * not a power of two are also undefined; they are rounded up to the next power of two. */
+    void *ptr = (alignment == 0) ? NULL : mspace_memalign(shmem_heap_mspace, alignment, size);
     shmem_barrier_all();
     return ptr;
 }
@@ -960,13 +960,13 @@ void shmem_fcollect64(void *target, const void *source, size_t nlong, int PE_sta
 void shmem_alltoall32(void *dest, const void *source, size_t nelems, int PE_start,
                       int logPE_stride, int PE_size, long *pSync)
 {
-    oshmpi_set_psync(SHMEM_COLLECT_SYNC_SIZE, SHMEM_SYNC_VALUE, pSync);
+    oshmpi_set_psync(SHMEM_ALLTOALL_SYNC_SIZE, SHMEM_SYNC_VALUE, pSync);
     oshmpi_coll(SHMEM_ALLTOALL,  MPI_INT32_T, MPI_OP_NULL, dest, source, 0 /* stride */, 0 /* stride */, nelems, -1 /* root */, PE_start, logPE_stride, PE_size);
 }
 void shmem_alltoall64(void *dest, const void *source, size_t nelems, int PE_start,
                       int logPE_stride, int PE_size, long *pSync)
 {
-    oshmpi_set_psync(SHMEM_COLLECT_SYNC_SIZE, SHMEM_SYNC_VALUE, pSync);
+    oshmpi_set_psync(SHMEM_ALLTOALL_SYNC_SIZE, SHMEM_SYNC_VALUE, pSync);
     oshmpi_coll(SHMEM_ALLTOALL,  MPI_INT64_T, MPI_OP_NULL, dest, source, 0 /* stride */, 0 /* stride */, nelems, -1 /* root */, PE_start, logPE_stride, PE_size);
 }
 
@@ -974,14 +974,14 @@ void shmem_alltoalls32(void *dest, const void *source, ptrdiff_t dst,
                        ptrdiff_t sst, size_t nelems, int PE_start,
                        int logPE_stride, int PE_size, long *pSync)
 {
-    oshmpi_set_psync(SHMEM_COLLECT_SYNC_SIZE, SHMEM_SYNC_VALUE, pSync);
-    oshmpi_coll(SHMEM_ALLTOALLS,  MPI_INT64_T, MPI_OP_NULL, dest, source, dst, sst, nelems, -1 /* root */, PE_start, logPE_stride, PE_size);
+    oshmpi_set_psync(SHMEM_ALLTOALLS_SYNC_SIZE, SHMEM_SYNC_VALUE, pSync);
+    oshmpi_coll(SHMEM_ALLTOALLS,  MPI_INT32_T, MPI_OP_NULL, dest, source, dst, sst, nelems, -1 /* root */, PE_start, logPE_stride, PE_size);
 }
 void shmem_alltoalls64(void *dest, const void *source, ptrdiff_t dst,
                        ptrdiff_t sst, size_t nelems, int PE_start,
                        int logPE_stride, int PE_size, long *pSync)
 {
-    oshmpi_set_psync(SHMEM_COLLECT_SYNC_SIZE, SHMEM_SYNC_VALUE, pSync);
+    oshmpi_set_psync(SHMEM_ALLTOALLS_SYNC_SIZE, SHMEM_SYNC_VALUE, pSync);
     oshmpi_coll(SHMEM_ALLTOALLS,  MPI_INT64_T, MPI_OP_NULL, dest, source, dst, sst, nelems, -1 /* root */, PE_start, logPE_stride, PE_size);
 }
 

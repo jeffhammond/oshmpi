@@ -19,6 +19,7 @@ check_PROGRAMS += tests/barrier_performance \
                   tests/test_thread \
                   tests/test_14 \
                   tests/test_generic \
+                  tests/test_coll_semantics \
                   # end
 
 TESTS += tests/barrier_performance \
@@ -37,6 +38,7 @@ TESTS += tests/barrier_performance \
          tests/test_thread \
          tests/test_14 \
          tests/test_generic \
+         tests/test_coll_semantics \
          # end
 
 tests_barrier_performance_LDADD = libshmem.la
@@ -56,3 +58,4 @@ tests_test_zero_comm_LDADD = libshmem.la
 tests_test_thread_LDADD = libshmem.la
 tests_test_14_LDADD = libshmem.la
 tests_test_generic_LDADD = libshmem.la
+tests_test_coll_semantics_LDADD = libshmem.la

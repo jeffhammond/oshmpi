@@ -36,8 +36,8 @@ Developed and tested on macOS (arm64), MPICH 5.0.2 (`ch4:ofi`), 2-4 PEs only.
 | Test | Symptom | Cause |
 |---|---|---|
 | `tests-uh` `test_shmem_put`, `_put_shmem_malloc`, `_get`, `_get_shmem_malloc` | abort at exit / `shmem_get64: Failed` | Test bugs: assume a 16-byte `long double` (it is 8 bytes on arm64), and `dest8` allocated 4 bytes but written with 7. Pass with those fixed. |
-| SOS `global_exit` | hangs; peers blocked in a barrier are not reaped after `MPI_Abort` | Seen with MPICH + libfabric `sockets`; SOS disables this test for MPI launchers. Retest on a Linux system. |
-| Occasional `MPI_Finalize` hangs on freshly linked binaries | both ranks in the libfabric progress loop | Appears tied to the local network/firewall environment (plain MPI programs and re-linked copies of the same source differ run to run). Retest on a better system. |
+| `MPI_Finalize` hangs on many binaries (macOS) | both ranks in the libfabric `sockets` progress loop | MPICH falls back to the `sockets` provider when only `FI_TCP_IFACE` is set; `FI_PROVIDER=tcp` avoids it (not an OSHMPI bug). The `tcp` provider in turn stalls `tests/lat_bw` at 16 KiB messages. |
+| SOS `global_exit` | was a hang | fixed: OSHMPI aborted a duplicated communicator; now `MPI_COMM_WORLD`. |
 
 ## To do
 
