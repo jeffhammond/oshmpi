@@ -2,6 +2,39 @@
 
 #include "shmem-internals.h"
 
+/* Definitions of the globals declared extern in shmem-internals.h. */
+MPI_Comm  SHMEM_COMM_WORLD;
+MPI_Group SHMEM_GROUP_WORLD;
+int       shmem_is_initialized;
+int       shmem_thread_provided;
+int       shmem_is_finalized;
+int       shmem_world_size, shmem_world_rank;
+char      shmem_procname[MPI_MAX_PROCESSOR_NAME];
+#ifdef ENABLE_SMP_OPTIMIZATIONS
+MPI_Comm  SHMEM_COMM_NODE;
+MPI_Group SHMEM_GROUP_NODE;
+int       shmem_world_is_smp;
+int       shmem_node_size, shmem_node_rank;
+int *     shmem_smp_rank_list;
+void **   shmem_smp_sheap_ptrs;
+#endif
+MPI_Win shmem_etext_win;
+int     shmem_etext_size;
+void *  shmem_etext_base_ptr;
+MPI_Win shmem_sheap_win;
+long    shmem_sheap_size;
+void *  shmem_sheap_base_ptr;
+mspace shmem_heap_mspace;
+#ifdef ENABLE_MPMD_SUPPORT
+int     shmem_running_mpmd;
+int     shmem_mpmd_my_appnum;
+MPI_Win shmem_mpmd_appnum_win;
+#endif
+#if ENABLE_COMM_CACHING
+int shmem_comm_cache_size;
+shmem_comm_t * comm_cache;
+#endif
+
 /* this code deals with SHMEM communication out of symmetric but non-heap data */
 #if defined(HAVE_APPLE_MAC)
     /* The legacy end(3) accessors (get_etext, get_end) are deprecated and do not describe
