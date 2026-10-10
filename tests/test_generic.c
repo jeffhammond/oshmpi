@@ -3,11 +3,6 @@
 #include <stdint.h>
 #include <shmem.h>
 
-#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L
-/* the C11 generic bindings need a C11 compiler: report SKIP to the test harness */
-int main(void) { return 77; }
-#else
-
 static int errs = 0, me, np;
 #define CHECK(c, m) do { if (!(c)) { printf("[%d] FAIL line %d: %s\n", me, __LINE__, m); errs++; } } while (0)
 
@@ -80,5 +75,3 @@ int main(void)
     shmem_finalize();
     return errs != 0;
 }
-
-#endif /* C11 */

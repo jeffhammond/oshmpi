@@ -10,9 +10,9 @@ We recommend you use [Sandia OpenSHMEM](https://github.com/Sandia-OpenSHMEM/SOS)
 Test Status
 ===========
 
-We currently test with MPICH 3.2 on Ubuntu.
+A C11 compiler and MPI-3 are required.  We test with MPICH and Open MPI on Ubuntu and macOS using GitHub Actions.
 
-[![Build Status](https://travis-ci.org/jeffhammond/oshmpi.svg?branch=master)](https://travis-ci.org/jeffhammond/oshmpi)
+[![CI](https://github.com/jeffhammond/oshmpi/actions/workflows/ci.yml/badge.svg)](https://github.com/jeffhammond/oshmpi/actions/workflows/ci.yml)
 
 Publications
 ============

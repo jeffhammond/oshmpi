@@ -17,6 +17,10 @@
 #define OSHMPI_SHMEM_H
 
 #include <stddef.h>
+
+#if !defined(__cplusplus) && (!defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L)
+#error "The OpenSHMEM headers require a C11 compiler (for example, -std=gnu11)."
+#endif
 #include <complex.h>
 
 /* these should not be here */
@@ -533,7 +537,7 @@ void shfree(void *ptr) OSHMPI_DEPRECATED;
 void start_pes(int npes) OSHMPI_DEPRECATED;
 
 /* C11 Generic Macros */
-#if (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(SHMEM_INTERNAL_INCLUDE))
+#if (!defined(__cplusplus) && !defined(SHMEM_INTERNAL_INCLUDE))
 #include <stdint.h>
 
 /* OpenSHMEM 1.4 type-generic RMA, atomic, wait_until and test routines, each with

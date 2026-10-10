@@ -54,7 +54,7 @@ Developed and tested on macOS (arm64), MPICH 5.0.2 (`ch4:ofi`), 2-4 PEs only.
 4. **Retest the known failures** above on a better system and file upstream issues for the `tests-uh` bugs.
 5. **PRK.** Confirm the PRK SHMEM kernels (`common/par-res-kern_shmem.h`) now build and run; this was the original motivation
    (the standard `shmem_malloc`/`shmem_free`/`shmem_align`/`shmem_realloc` names were missing).
-6. **Housekeeping.** Remove or implement the unused `--enable-sheap-barriers` option; update `README.md` and `.travis.yml` for the 1.3 claim.
+6. **Housekeeping.** Remove or implement the unused `--enable-sheap-barriers` option; update `README.md` for the 1.3 claim.
    Autogen output (`configure`, `Makefile.in`, ...) is untracked and should stay out of commits.
 
 ---
