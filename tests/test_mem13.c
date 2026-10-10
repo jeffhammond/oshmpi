@@ -33,7 +33,7 @@ int main(void)
 
     int major, minor;
     shmem_info_get_version(&major, &minor);
-    if (major != 1 || minor != 4) { printf("[%d] version %d.%d\n", me, major, minor); errs++; }
+    if (major != 1 || minor != 3) { printf("[%d] version %d.%d\n", me, major, minor); errs++; }
 
     if (errs) printf("[%d] test_mem13: %d errors\n", me, errs);
     else printf("[%d] test_mem13: OK\n", me);

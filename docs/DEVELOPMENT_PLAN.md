@@ -83,14 +83,14 @@ conflicted with the 1.3 work.
 - **C11 generic bindings** (`tools/gen-c11-generics.py` -> `src/shmem14-generic.h`), with optional leading context argument.
   They select on the basic C types (fixed-width, `size_t` and `ptrdiff_t` alias them).  Not visible under `-std=gnu99`.
 - **Environment variables:** `SHMEM_SYMMETRIC_SIZE` (read first), `SHMEM_VERSION`, `SHMEM_INFO`.  `SHMEM_DEBUG` is accepted and ignored.
-- `SHMEM_ALLTOALLS_SYNC_SIZE`; version macros report 1.4.
+- `SHMEM_ALLTOALLS_SYNC_SIZE`, `SHMEM_SYNC_SIZE`.  The version macro stays 1.3 until the implementation is complete; see `docs/COMPLIANCE.md`.
 - Tests added to `make check`: `test_thread`, `test_14`, `test_generic` (skips without C11).  Fixed `tests/Makefile.mk`, which
   was not running the new tests at all.
 
 ## To do (1.4)
 
-1. **Spec check.** Verify the 1.4 routines against the spec text (argument types, return values, which types each routine takes).
-   Found one such mismatch from an external test: `shmem_init_thread` must return `int`.
+1. **Spec check.** The type tables, `init_thread`, `sync`, `global_exit`, `ctx_create` and the memory routines were checked against the spec
+   (`openshmem-spec/content/*.tex`) and fixed; the remaining routines have not been read line by line yet.
 2. **Deprecations.** Mark the 1.4-deprecated routines (`shmem_wait*`, `start_pes`, old-style atomics such as `shmem_int_fadd`,
    cache routines, ...) with `OSHMPI_DEPRECATED` as the spec's Annex requires, without breaking the existing tests.
 3. **Contexts:** real per-context ordering/completion (separate windows or request tracking) if performance isolation matters;
