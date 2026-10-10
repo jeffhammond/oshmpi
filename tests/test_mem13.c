@@ -12,6 +12,14 @@ int main(void)
     if (shmem_calloc(0, 4) != NULL) { printf("[%d] shmem_calloc(0,4) != NULL\n", me); errs++; }
     if (shmem_calloc(4, 0) != NULL) { printf("[%d] shmem_calloc(4,0) != NULL\n", me); errs++; }
     if (shmem_align(64, 0) != NULL) { printf("[%d] shmem_align(64,0) != NULL\n", me); errs++; }
+    if (shmem_align(0, 100) != NULL) { printf("[%d] shmem_align(0,100) != NULL\n", me); errs++; }
+    if (shmem_align(3, 100) != NULL) { printf("[%d] shmem_align(3,100) != NULL\n", me); errs++; }
+    if (shmem_align(24, 100) != NULL) { printf("[%d] shmem_align(24,100) != NULL\n", me); errs++; }
+    for (size_t al = 8; al <= 4096; al *= 2) {
+        char * p = shmem_align(al, 100);
+        if (p == NULL || ((unsigned long)p % al) != 0) { printf("[%d] shmem_align(%zu,100) bad\n", me, al); errs++; }
+        shmem_free(p);
+    }
 
     long * a = shmem_calloc(16, sizeof(long));
     if (a == NULL) { printf("[%d] shmem_calloc failed\n", me); errs++; }
