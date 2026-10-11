@@ -24,6 +24,11 @@ check_PROGRAMS += tests/barrier_performance \
                   tests/test_mt_rma \
                   tests/test_lock_multi \
                   tests/test_direct \
+                  tests/test_sync15 \
+                  tests/test_amo_nbi \
+                  tests/test_signal \
+                  tests/test_team \
+                  tests/test_team_coll \
                   # end
 
 TESTS += tests/barrier_performance \
@@ -47,6 +52,11 @@ TESTS += tests/barrier_performance \
          tests/test_mt_rma \
          tests/test_lock_multi \
          tests/test_direct \
+         tests/test_sync15 \
+         tests/test_amo_nbi \
+         tests/test_signal \
+         tests/test_team \
+         tests/test_team_coll \
          # end
 
 tests_barrier_performance_LDADD = libshmem.la
@@ -72,3 +82,8 @@ tests_test_mt_rma_LDADD = libshmem.la
 tests_test_mt_rma_LDFLAGS = -pthread
 tests_test_lock_multi_LDADD = libshmem.la
 tests_test_direct_LDADD = libshmem.la
+tests_test_sync15_LDADD = libshmem.la
+tests_test_amo_nbi_LDADD = libshmem.la
+tests_test_signal_LDADD = libshmem.la
+tests_test_team_LDADD = libshmem.la
+tests_test_team_coll_LDADD = libshmem.la

@@ -13,6 +13,10 @@ libshmem_la_CPPFLAGS = $(AM_CPPFLAGS) -DSHMEM_INTERNAL_INCLUDE
 libshmem_la_SOURCES = src/shmem-internals.c      \
                       src/shmem.c                \
                       src/shmem14.c              \
+                      src/shmem15-sync.c         \
+                      src/shmem15-amo.c          \
+                      src/shmem15-signal.c       \
+                      src/shmem15-team.c         \
                       src/oshmpi-mcs-lock.c      \
                       src/dlmalloc.c             \
                       src/shmemx-counting-put.c  \
@@ -23,6 +27,11 @@ libshmem_la_SOURCES = src/shmem-internals.c      \
 include_HEADERS = src/shmem.h \
 		  src/shmem14.h \
 		  src/shmem14-generic.h \
+		  src/shmem15.h \
+		  src/shmem15-sync.h \
+		  src/shmem15-amo.h \
+		  src/shmem15-signal.h \
+		  src/shmem15-team.h \
 		  src/shmemx.h \
 		  src/shmem-internals.h \
 		  src/oshmpi-direct.h \

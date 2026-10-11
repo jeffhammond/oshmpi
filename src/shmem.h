@@ -640,6 +640,7 @@ double shmem_wtime(void);
 char* shmem_nodename(void);
 
 #include "shmem14.h"
+#include "shmem15.h"
 
 #ifdef __cplusplus
 }
