@@ -61,16 +61,16 @@ void oshmpix_put_strided_2d(MPI_Datatype mpi_type, void *target, const void *sou
 
 #ifdef ENABLE_RMA_ORDERING
         /* ENABLE_RMA_ORDERING means "RMA operations are ordered" */
-        MPI_Accumulate(source, 1, source_type,                   /* origin */
+        OSHMPI_MPI_RMA(MPI_Accumulate(source, 1, source_type,                   /* origin */
                        pe, (MPI_Aint)win_offset, 1, target_type, /* target */
                        MPI_REPLACE,                              /* atomic, ordered Put */
-                       win);
+                       win));
 #else
-        MPI_Put(source, 1, source_type,                   /* origin */
+        OSHMPI_MPI_RMA(MPI_Put(source, 1, source_type,                   /* origin */
                 pe, (MPI_Aint)win_offset, 1, target_type, /* target */
-                win);
+                win));
 #endif
-        MPI_Win_flush_local(pe, win);
+        OSHMPI_MPI_RMA(MPI_Win_flush_local(pe, win));
 
         if (target_stride!=source_stride) {
             MPI_Type_free(&target_type);
@@ -137,17 +137,17 @@ void oshmpix_get_strided_2d(MPI_Datatype mpi_type, void *target, const void *sou
 
 #ifdef ENABLE_RMA_ORDERING
         /* ENABLE_RMA_ORDERING means "RMA operations are ordered" */
-        MPI_Get_accumulate(NULL, 0, MPI_DATATYPE_NULL,                   /* origin */
+        OSHMPI_MPI_RMA(MPI_Get_accumulate(NULL, 0, MPI_DATATYPE_NULL,                   /* origin */
                            target, 1, target_type,                   /* result */
                            pe, (MPI_Aint)win_offset, 1, source_type, /* remote */
                            MPI_NO_OP,                                    /* atomic, ordered Get */
-                           win);
+                           win));
 #else
-        MPI_Get(target, 1, target_type,                   /* result */
+        OSHMPI_MPI_RMA(MPI_Get(target, 1, target_type,                   /* result */
                 pe, (MPI_Aint)win_offset, 1, source_type, /* remote */
-                win);
+                win));
 #endif
-        MPI_Win_flush_local(pe, win);
+        OSHMPI_MPI_RMA(MPI_Win_flush_local(pe, win));
 
         if (target_stride!=source_stride) 
             MPI_Type_free(&target_type);

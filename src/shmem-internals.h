@@ -22,6 +22,7 @@
 #include "type_contiguous_x.h"
 
 #define ONLY_MSPACES 1
+#include <pthread.h>
 #include "dlmalloc.h"
 
 typedef MPI_Aint shmem_offset_t;
@@ -143,6 +144,18 @@ static inline void oshmpi_progress(void)
     int flag;
     MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, SHMEM_COMM_WORLD, &flag, MPI_STATUS_IGNORE);
 }
+
+/* Open MPI's osc/ucx hangs or crashes when several threads issue RMA on a window at once
+ * (even though MPI_THREAD_MULTIPLE allows it), so in that mode every RMA, flush and sync
+ * call is serialized.  Single-threaded runs take no lock. */
+extern pthread_mutex_t oshmpi_rma_mutex;
+#define OSHMPI_MPI_RMA(call)                                                         \
+    do {                                                                             \
+        int oshmpi_mt_ = (shmem_thread_provided == MPI_THREAD_MULTIPLE);             \
+        if (oshmpi_mt_) pthread_mutex_lock(&oshmpi_rma_mutex);                       \
+        call;                                                                        \
+        if (oshmpi_mt_) pthread_mutex_unlock(&oshmpi_rma_mutex);                     \
+    } while (0)
 
 static inline void oshmpi_set_psync(int count, long value, long * pSync)
 {

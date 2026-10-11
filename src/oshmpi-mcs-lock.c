@@ -51,22 +51,22 @@ void oshmpi_lock(OSHMPI_VOLATILE long * lockp)
   oshmpi_lock_t *lock = (oshmpi_lock_t *) lockp;
   int token;
   /* Replace the tail with myself, learning who was last */
-  MPI_Fetch_and_op (&shmem_world_rank, &(lock->prev), MPI_INT, TAIL,
-		    TAIL_DISP, MPI_REPLACE, oshmpi_lock_win);
-  MPI_Win_flush (TAIL, oshmpi_lock_win);
+  OSHMPI_MPI_RMA(MPI_Fetch_and_op (&shmem_world_rank, &(lock->prev), MPI_INT, TAIL,
+		    TAIL_DISP, MPI_REPLACE, oshmpi_lock_win));
+  OSHMPI_MPI_RMA(MPI_Win_flush (TAIL, oshmpi_lock_win));
 
   /* Previous proc holding lock will eventually notify */
   if (lock->prev != -1)
     {
       /* Tell the previous proc that I am behind it, then wait for the hand-off */
-      MPI_Accumulate (&shmem_world_rank, 1, MPI_INT, lock->prev, NEXT_DISP,
-		      1, MPI_INT, MPI_REPLACE, oshmpi_lock_win);
-      MPI_Win_flush (lock->prev, oshmpi_lock_win);
+      OSHMPI_MPI_RMA(MPI_Accumulate (&shmem_world_rank, 1, MPI_INT, lock->prev, NEXT_DISP,
+		      1, MPI_INT, MPI_REPLACE, oshmpi_lock_win));
+      OSHMPI_MPI_RMA(MPI_Win_flush (lock->prev, oshmpi_lock_win));
       MPI_Recv (&token, 1, MPI_INT, lock->prev, LOCK_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     }
   /* Hold lock */
   oshmpi_lock_base[LOCK_DISP] = 1;
-  MPI_Win_sync (oshmpi_lock_win);
+  OSHMPI_MPI_RMA(MPI_Win_sync (oshmpi_lock_win));
 
   return;
 }
@@ -78,37 +78,37 @@ void oshmpi_unlock(OSHMPI_VOLATILE long * lockp)
 
   /* Release lock */
   oshmpi_lock_base[LOCK_DISP] = -1;
-  MPI_Win_sync (oshmpi_lock_win);
+  OSHMPI_MPI_RMA(MPI_Win_sync (oshmpi_lock_win));
 
   /* Determine my next process */
-  MPI_Fetch_and_op (NULL, &(lock->next), MPI_INT, shmem_world_rank,
-		    NEXT_DISP, MPI_NO_OP, oshmpi_lock_win);
-  MPI_Win_flush (shmem_world_rank, oshmpi_lock_win);
+  OSHMPI_MPI_RMA(MPI_Fetch_and_op (NULL, &(lock->next), MPI_INT, shmem_world_rank,
+		    NEXT_DISP, MPI_NO_OP, oshmpi_lock_win));
+  OSHMPI_MPI_RMA(MPI_Win_flush (shmem_world_rank, oshmpi_lock_win));
 
   if (lock->next == -1)
     {
       /* No known successor: if I am still the tail, the queue is now empty. */
       int old_tail = -1;
-      MPI_Compare_and_swap (&nil, &shmem_world_rank, &old_tail, MPI_INT,
-			    TAIL, TAIL_DISP, oshmpi_lock_win);
-      MPI_Win_flush (TAIL, oshmpi_lock_win);
+      OSHMPI_MPI_RMA(MPI_Compare_and_swap (&nil, &shmem_world_rank, &old_tail, MPI_INT,
+			    TAIL, TAIL_DISP, oshmpi_lock_win));
+      OSHMPI_MPI_RMA(MPI_Win_flush (TAIL, oshmpi_lock_win));
       if (old_tail == shmem_world_rank)
 	return;
 
       /* Someone queued behind me but has not yet told me; wait for it. */
       while (lock->next == -1)
 	{
-	  MPI_Fetch_and_op (NULL, &(lock->next), MPI_INT, shmem_world_rank,
-			    NEXT_DISP, MPI_NO_OP, oshmpi_lock_win);
-	  MPI_Win_flush (shmem_world_rank, oshmpi_lock_win);
+	  OSHMPI_MPI_RMA(MPI_Fetch_and_op (NULL, &(lock->next), MPI_INT, shmem_world_rank,
+			    NEXT_DISP, MPI_NO_OP, oshmpi_lock_win));
+	  OSHMPI_MPI_RMA(MPI_Win_flush (shmem_world_rank, oshmpi_lock_win));
 	  if (lock->next == -1) oshmpi_progress ();
 	}
     }
 
   /* Reset my next slot for the next time I queue, then hand over the lock */
-  MPI_Accumulate (&nil, 1, MPI_INT, shmem_world_rank, NEXT_DISP,
-		  1, MPI_INT, MPI_REPLACE, oshmpi_lock_win);
-  MPI_Win_flush (shmem_world_rank, oshmpi_lock_win);
+  OSHMPI_MPI_RMA(MPI_Accumulate (&nil, 1, MPI_INT, shmem_world_rank, NEXT_DISP,
+		  1, MPI_INT, MPI_REPLACE, oshmpi_lock_win));
+  OSHMPI_MPI_RMA(MPI_Win_flush (shmem_world_rank, oshmpi_lock_win));
   MPI_Send (&shmem_world_rank, 1, MPI_INT, lock->next, LOCK_TAG, MPI_COMM_WORLD);
 
   return;
@@ -119,9 +119,9 @@ int oshmpi_trylock(OSHMPI_VOLATILE long * lockp)
   int nil = -1, prev = -1;
   oshmpi_lock_t *lock = (oshmpi_lock_t *) lockp;
   /* The lock is free only if the queue is empty: if the tail is -1, take it. */
-  MPI_Compare_and_swap (&shmem_world_rank, &nil, &prev, MPI_INT,
-			TAIL, TAIL_DISP, oshmpi_lock_win);
-  MPI_Win_flush (TAIL, oshmpi_lock_win);
+  OSHMPI_MPI_RMA(MPI_Compare_and_swap (&shmem_world_rank, &nil, &prev, MPI_INT,
+			TAIL, TAIL_DISP, oshmpi_lock_win));
+  OSHMPI_MPI_RMA(MPI_Win_flush (TAIL, oshmpi_lock_win));
   lock->prev = prev;
   if (prev != -1)
     {
@@ -132,7 +132,7 @@ int oshmpi_trylock(OSHMPI_VOLATILE long * lockp)
 
   /* Hold lock */
   oshmpi_lock_base[LOCK_DISP] = 1;
-  MPI_Win_sync (oshmpi_lock_win);
+  OSHMPI_MPI_RMA(MPI_Win_sync (oshmpi_lock_win));
 
   return 1;
 }

@@ -116,8 +116,8 @@ int shmem_pe_accessible(int pe)
     if (shmem_running_mpmd) {
         int pe_appnum;
         /* Don't need a valid PE check since these operations will fail in that case. */
-        MPI_Fetch_and_op(NULL, &pe_appnum, MPI_INT, pe, 0, MPI_NO_OP, shmem_mpmd_appnum_win);
-        MPI_Win_flush(pe, shmem_mpmd_appnum_win);
+        OSHMPI_MPI_RMA(MPI_Fetch_and_op(NULL, &pe_appnum, MPI_INT, pe, 0, MPI_NO_OP, shmem_mpmd_appnum_win));
+        OSHMPI_MPI_RMA(MPI_Win_flush(pe, shmem_mpmd_appnum_win));
         return (shmem_mpmd_my_appnum == pe_appnum);
     }
 #else

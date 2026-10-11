@@ -3,6 +3,7 @@
 #include "shmem-internals.h"
 
 /* Definitions of the globals declared extern in shmem-internals.h. */
+pthread_mutex_t oshmpi_rma_mutex = PTHREAD_MUTEX_INITIALIZER;
 MPI_Comm  SHMEM_COMM_WORLD;
 MPI_Group SHMEM_GROUP_WORLD;
 int       shmem_is_initialized;
@@ -243,9 +244,9 @@ void oshmpi_initialize(int threading)
                 MPI_Win_lock_all(0, shmem_mpmd_appnum_win);
 
                 /* Write my appnum into appropriate location in window. */
-                MPI_Accumulate(&shmem_mpmd_my_appnum, 1, MPI_INT, shmem_world_rank,
-                               (MPI_Aint)0, 1, MPI_INT, MPI_REPLACE, shmem_mpmd_appnum_win);
-                MPI_Win_flush(shmem_world_rank, shmem_mpmd_appnum_win);
+                OSHMPI_MPI_RMA(MPI_Accumulate(&shmem_mpmd_my_appnum, 1, MPI_INT, shmem_world_rank,
+                               (MPI_Aint)0, 1, MPI_INT, MPI_REPLACE, shmem_mpmd_appnum_win));
+                OSHMPI_MPI_RMA(MPI_Win_flush(shmem_world_rank, shmem_mpmd_appnum_win));
             }
 #endif
         }
@@ -560,14 +561,14 @@ void oshmpi_finalize(void)
 
 void oshmpi_remote_sync(void)
 {
-    MPI_Win_flush_all(shmem_sheap_win);
-    MPI_Win_flush_all(shmem_etext_win);
+    OSHMPI_MPI_RMA(MPI_Win_flush_all(shmem_sheap_win));
+    OSHMPI_MPI_RMA(MPI_Win_flush_all(shmem_etext_win));
 }
 
 void oshmpi_remote_sync_pe(int pe)
 {
-    MPI_Win_flush(pe, shmem_sheap_win);
-    MPI_Win_flush(pe, shmem_etext_win);
+    OSHMPI_MPI_RMA(MPI_Win_flush(pe, shmem_sheap_win));
+    OSHMPI_MPI_RMA(MPI_Win_flush(pe, shmem_etext_win));
 }
 
 void oshmpi_local_sync(void)
@@ -575,8 +576,8 @@ void oshmpi_local_sync(void)
 #ifdef ENABLE_SMP_OPTIMIZATIONS
     __sync_synchronize();
 #endif
-    MPI_Win_sync(shmem_sheap_win);
-    MPI_Win_sync(shmem_etext_win);
+    OSHMPI_MPI_RMA(MPI_Win_sync(shmem_sheap_win));
+    OSHMPI_MPI_RMA(MPI_Win_sync(shmem_etext_win));
 }
 
 /* return 0 on successful lookup, otherwise 1 */
@@ -671,19 +672,19 @@ void oshmpi_put(MPI_Datatype mpi_type, void *target, const void *source, size_t 
         }
 #ifdef ENABLE_RMA_ORDERING
         /* ENABLE_RMA_ORDERING means "RMA operations are ordered" */
-        MPI_Accumulate(source, count, tmp_type,                   /* origin */
+        OSHMPI_MPI_RMA(MPI_Accumulate(source, count, tmp_type,                   /* origin */
                        pe, (MPI_Aint)win_offset, count, tmp_type, /* target */
                        MPI_REPLACE,                               /* atomic, ordered Put */
-                       win);
+                       win));
 #else
-        MPI_Put(source, count, tmp_type,                   /* origin */
+        OSHMPI_MPI_RMA(MPI_Put(source, count, tmp_type,                   /* origin */
                 pe, (MPI_Aint)win_offset, count, tmp_type, /* target */
-                win);
+                win));
 #endif
         if ( unlikely(len>(size_t)INT32_MAX) ) {
             MPI_Type_free(&tmp_type);
         }
-        MPI_Win_flush_local(pe, win);
+        OSHMPI_MPI_RMA(MPI_Win_flush_local(pe, win));
     }
     return;
 }
@@ -732,20 +733,20 @@ void oshmpi_get(MPI_Datatype mpi_type, void *target, const void *source, size_t 
         }
 #ifdef ENABLE_RMA_ORDERING
         /* ENABLE_RMA_ORDERING means "RMA operations are ordered" */
-        MPI_Get_accumulate(NULL, 0, MPI_DATATYPE_NULL,                /* origin */
+        OSHMPI_MPI_RMA(MPI_Get_accumulate(NULL, 0, MPI_DATATYPE_NULL,                /* origin */
                            target, count, tmp_type,                   /* result */
                            pe, (MPI_Aint)win_offset, count, tmp_type, /* remote */
                            MPI_NO_OP,                                 /* atomic, ordered Get */
-                           win);
+                           win));
 #else
-        MPI_Get(target, count, tmp_type,                   /* result */
+        OSHMPI_MPI_RMA(MPI_Get(target, count, tmp_type,                   /* result */
                 pe, (MPI_Aint)win_offset, count, tmp_type, /* remote */
-                win);
+                win));
 #endif
         if ( unlikely(len>(size_t)INT32_MAX) ) {
             MPI_Type_free(&tmp_type);
         }
-        MPI_Win_flush_local(pe, win);
+        OSHMPI_MPI_RMA(MPI_Win_flush_local(pe, win));
     }
     return;
 }
@@ -795,14 +796,14 @@ void oshmpi_put_nbi(MPI_Datatype mpi_type, void *target, const void *source, siz
         }
 #ifdef ENABLE_RMA_ORDERING
         /* ENABLE_RMA_ORDERING means "RMA operations are ordered" */
-        MPI_Accumulate(source, count, tmp_type,                   /* origin */
+        OSHMPI_MPI_RMA(MPI_Accumulate(source, count, tmp_type,                   /* origin */
                        pe, (MPI_Aint)win_offset, count, tmp_type, /* target */
                        MPI_REPLACE,                               /* atomic, ordered Put */
-                       win);
+                       win));
 #else
-        MPI_Put(source, count, tmp_type,                   /* origin */
+        OSHMPI_MPI_RMA(MPI_Put(source, count, tmp_type,                   /* origin */
                 pe, (MPI_Aint)win_offset, count, tmp_type, /* target */
-                win);
+                win));
 #endif
         if ( unlikely(len>(size_t)INT32_MAX) ) {
             MPI_Type_free(&tmp_type);
@@ -855,15 +856,15 @@ void oshmpi_get_nbi(MPI_Datatype mpi_type, void *target, const void *source, siz
         }
 #ifdef ENABLE_RMA_ORDERING
         /* ENABLE_RMA_ORDERING means "RMA operations are ordered" */
-        MPI_Get_accumulate(NULL, 0, MPI_DATATYPE_NULL,                /* origin */
+        OSHMPI_MPI_RMA(MPI_Get_accumulate(NULL, 0, MPI_DATATYPE_NULL,                /* origin */
                            target, count, tmp_type,                   /* result */
                            pe, (MPI_Aint)win_offset, count, tmp_type, /* remote */
                            MPI_NO_OP,                                 /* atomic, ordered Get */
-                           win);
+                           win));
 #else
-        MPI_Get(target, count, tmp_type,                   /* result */
+        OSHMPI_MPI_RMA(MPI_Get(target, count, tmp_type,                   /* result */
                 pe, (MPI_Aint)win_offset, count, tmp_type, /* remote */
-                win);
+                win));
 #endif
         if ( unlikely(len>(size_t)INT32_MAX) ) {
             MPI_Type_free(&tmp_type);
@@ -930,16 +931,16 @@ void oshmpi_put_strided(MPI_Datatype mpi_type, void *target, const void *source,
 
 #ifdef ENABLE_RMA_ORDERING
         /* ENABLE_RMA_ORDERING means "RMA operations are ordered" */
-        MPI_Accumulate(source, 1, source_type,                   /* origin */
+        OSHMPI_MPI_RMA(MPI_Accumulate(source, 1, source_type,                   /* origin */
                        pe, (MPI_Aint)win_offset, 1, target_type, /* target */
                        MPI_REPLACE,                              /* atomic, ordered Put */
-                       win);
+                       win));
 #else
-        MPI_Put(source, 1, source_type,                   /* origin */
+        OSHMPI_MPI_RMA(MPI_Put(source, 1, source_type,                   /* origin */
                 pe, (MPI_Aint)win_offset, 1, target_type, /* target */
-                win);
+                win));
 #endif
-        MPI_Win_flush_local(pe, win);
+        OSHMPI_MPI_RMA(MPI_Win_flush_local(pe, win));
 
         if (target_stride!=source_stride) {
             MPI_Type_free(&target_type);
@@ -1008,17 +1009,17 @@ void oshmpi_get_strided(MPI_Datatype mpi_type, void *target, const void *source,
 
 #ifdef ENABLE_RMA_ORDERING
         /* ENABLE_RMA_ORDERING means "RMA operations are ordered" */
-        MPI_Get_accumulate(NULL, 0, MPI_DATATYPE_NULL,                   /* origin */
+        OSHMPI_MPI_RMA(MPI_Get_accumulate(NULL, 0, MPI_DATATYPE_NULL,                   /* origin */
                            target, 1, target_type,                   /* result */
                            pe, (MPI_Aint)win_offset, 1, source_type, /* remote */
                            MPI_NO_OP,                                    /* atomic, ordered Get */
-                           win);
+                           win));
 #else
-        MPI_Get(target, 1, target_type,                   /* result */
+        OSHMPI_MPI_RMA(MPI_Get(target, 1, target_type,                   /* result */
                 pe, (MPI_Aint)win_offset, 1, source_type, /* remote */
-                win);
+                win));
 #endif
-        MPI_Win_flush_local(pe, win);
+        OSHMPI_MPI_RMA(MPI_Win_flush_local(pe, win));
 
         if (target_stride!=source_stride) 
             MPI_Type_free(&target_type);
@@ -1064,8 +1065,8 @@ void oshmpi_set(MPI_Datatype mpi_type, void *remote, const void *input, int pe)
     } else
 #endif
     {
-        MPI_Accumulate(input, 1, mpi_type, pe, win_offset, 1, mpi_type, MPI_REPLACE, win);
-        MPI_Win_flush(pe, win);
+        OSHMPI_MPI_RMA(MPI_Accumulate(input, 1, mpi_type, pe, win_offset, 1, mpi_type, MPI_REPLACE, win));
+        OSHMPI_MPI_RMA(MPI_Win_flush(pe, win));
     }
     return;
 }
@@ -1136,8 +1137,8 @@ void oshmpi_fetch(MPI_Datatype mpi_type, void *output, OSHMPI_CONST void *remote
     } else
 #endif
     {
-        MPI_Fetch_and_op(NULL, output, mpi_type, pe, win_offset, MPI_NO_OP, win);
-        MPI_Win_flush(pe, win);
+        OSHMPI_MPI_RMA(MPI_Fetch_and_op(NULL, output, mpi_type, pe, win_offset, MPI_NO_OP, win));
+        OSHMPI_MPI_RMA(MPI_Win_flush(pe, win));
     }
     return;
 }
@@ -1172,8 +1173,8 @@ void oshmpi_swap(MPI_Datatype mpi_type, void *output, void *remote, const void *
     } else
 #endif
     {
-        MPI_Fetch_and_op(input, output, mpi_type, pe, win_offset, MPI_REPLACE, win);
-        MPI_Win_flush(pe, win);
+        OSHMPI_MPI_RMA(MPI_Fetch_and_op(input, output, mpi_type, pe, win_offset, MPI_REPLACE, win));
+        OSHMPI_MPI_RMA(MPI_Win_flush(pe, win));
     }
     return;
 }
@@ -1209,8 +1210,8 @@ void oshmpi_cswap(MPI_Datatype mpi_type, void *output, void *remote, const void 
     } else
 #endif
     {
-        MPI_Compare_and_swap(input, compare, output, mpi_type, pe, win_offset, win);
-        MPI_Win_flush(pe, win);
+        OSHMPI_MPI_RMA(MPI_Compare_and_swap(input, compare, output, mpi_type, pe, win_offset, win));
+        OSHMPI_MPI_RMA(MPI_Win_flush(pe, win));
     }
     return;
 }
@@ -1243,8 +1244,8 @@ void oshmpi_add(MPI_Datatype mpi_type, void *remote, const void *input, int pe)
     } else
 #endif
     {
-        MPI_Accumulate(input, 1, mpi_type, pe, win_offset, 1, mpi_type, MPI_SUM, win);
-        MPI_Win_flush_local(pe, win);
+        OSHMPI_MPI_RMA(MPI_Accumulate(input, 1, mpi_type, pe, win_offset, 1, mpi_type, MPI_SUM, win));
+        OSHMPI_MPI_RMA(MPI_Win_flush_local(pe, win));
     }
     return;
 }
@@ -1260,8 +1261,8 @@ void oshmpi_op(MPI_Datatype mpi_type, MPI_Op op, void *remote, const void *input
 
     MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
 
-    MPI_Accumulate(input, 1, mpi_type, pe, win_offset, 1, mpi_type, op, win);
-    MPI_Win_flush_local(pe, win);
+    OSHMPI_MPI_RMA(MPI_Accumulate(input, 1, mpi_type, pe, win_offset, 1, mpi_type, op, win));
+    OSHMPI_MPI_RMA(MPI_Win_flush_local(pe, win));
     return;
 }
 void oshmpi_fetch_op(MPI_Datatype mpi_type, MPI_Op op, void *output, void *remote, const void *input, int pe)
@@ -1275,8 +1276,8 @@ void oshmpi_fetch_op(MPI_Datatype mpi_type, MPI_Op op, void *output, void *remot
 
     MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
 
-    MPI_Fetch_and_op(input, output, mpi_type, pe, win_offset, op, win);
-    MPI_Win_flush(pe, win);
+    OSHMPI_MPI_RMA(MPI_Fetch_and_op(input, output, mpi_type, pe, win_offset, op, win));
+    OSHMPI_MPI_RMA(MPI_Win_flush(pe, win));
     return;
 }
 void oshmpi_fadd(MPI_Datatype mpi_type, void *output, void *remote, const void *input, int pe)
@@ -1310,8 +1311,8 @@ void oshmpi_fadd(MPI_Datatype mpi_type, void *output, void *remote, const void *
     } else
 #endif
     {
-        MPI_Fetch_and_op(input, output, mpi_type, pe, win_offset, MPI_SUM, win);
-        MPI_Win_flush(pe, win);
+        OSHMPI_MPI_RMA(MPI_Fetch_and_op(input, output, mpi_type, pe, win_offset, MPI_SUM, win));
+        OSHMPI_MPI_RMA(MPI_Win_flush(pe, win));
     }
     return;
 }
