@@ -23,15 +23,25 @@ Requirements: a C11 compiler (checked by `configure`) and MPI-3.
 | C11 type-generic bindings (RMA, AMO, `wait_until`, `test`, with optional context argument) | 1.3/1.4 | `tools/gen-c11-generics.py`; selects on basic C types |
 | `SHMEM_SYMMETRIC_SIZE`, `SHMEM_VERSION`, `SHMEM_INFO` | 1.4 | `SHMEM_DEBUG` accepted and ignored; `SMA_*` and other vendor names still read |
 | `shmem_pcontrol` | 1.5 | no-op |
+| `shmem_<T>_wait_until_{all,any,some}` and `_vector` forms, `shmem_<T>_test_{all,any,some}` and `_vector` forms | 1.5 | `tools/gen-shmem15-sync.py` generates the C11 bindings; the any/some scans rotate their start so repeated `test_any` calls reach every satisfied element |
+| Nonblocking atomics `shmem_<T>_atomic_{fetch,swap,compare_swap,fetch_inc,fetch_add,fetch_and,fetch_or,fetch_xor}_nbi`, with context versions and C11 bindings | 1.5 | Complete inside the call, which the specification allows |
+| `shmem_malloc_with_hints`, `SHMEM_MALLOC_ATOMICS_REMOTE`, `SHMEM_MALLOC_SIGNAL_REMOTE` | 1.5 | Hints are advisory and ignored |
+| `shmem_ctx_session_start/stop`, `shmem_ctx_session_config_t` | 1.6 | No-ops, which the specification permits |
+| Put with signal: `shmem_<T>_put_signal(_nbi)`, `shmem_putmem_signal(_nbi)`, `shmem_put{8..128}_signal(_nbi)` and context versions; `shmem_signal_add/set/fetch`, `shmem_signal_wait_until`, `SHMEM_SIGNAL_SET/ADD` | 1.5/1.6 | Data, then a fence (and a flush of the target on the MPI path), then the atomic signal update; also the `shmemx_signal_add/set` names the Sandia tests use |
+| Teams: `SHMEM_TEAM_WORLD`, `SHMEM_TEAM_SHARED`, `shmem_team_my_pe/n_pes/get_config/translate_pe/split_strided/split_2d/destroy/ptr/sync`, `shmem_team_create_ctx`, `shmem_ctx_get_team` | 1.5 | Teams wrap MPI communicators; the predefined teams are created in `shmem_init` |
+| Team collectives: `shmem_<T>_{broadcast,collect,fcollect,alltoall,alltoalls}` and `*mem` forms, `shmem_<T>_{and,or,xor,max,min,sum,prod}_reduce`, with C11 bindings | 1.5 | The 1.3 active-set routines remain |
+| Direct load/store access to the symmetric heap, detected at run time with `MPI_Win_shared_query` | (implementation) | See the README; `OSHMPI_DIRECT=0` turns it off |
+| Per-variable MCS locks | (implementation) | Each lock variable is an independent lock; locks may be nested |
 | `<mpp/shmem.h>`, `<mpp/shmemx.h>` | 1.1 (deprecated) | forwarding headers |
 | `extern "C"` linkage in the headers; `_Complex` instead of `complex` in the reduction prototypes | 1.4 | the library can be called from C++ |
 | deprecation attributes on the pre-1.4 AMO and `shmem_wait` routines; `SMA_*` variables | 1.4 | |
 
-## Not implemented (no third-party test can validate it here, or not yet needed)
+## Not implemented
 
-Teams, put-with-signal and signals, `shmem_*_wait_until_{all,any,some}` and `test_*`, nonblocking AMOs,
-`shmem_malloc_with_hints`, team-based collectives and scans, sessions, re-initialization after finalize (1.6).
-The Sandia tests that need these do not compile yet; the list is in `tests/third_party/STATUS.md`.
+Scans (`shmem_*_scan`), re-initialization after finalize (1.6), Fortran bindings, and the vendor extensions the Sandia and Cray
+suites use beyond the specification: `shmemx_team_*` (Cray), `shmemx_am_*` (active messages) and `SHMEMX_*` malloc flags, and
+the C++ overloaded names (`shmem_g(...)` and so on) that Sandia OpenSHMEM provides.  The tests that need these do not compile;
+the list is in `tests/third_party/STATUS.md`.
 
 ## Known deviations
 
@@ -39,8 +49,9 @@ The Sandia tests that need these do not compile yet; the list is in `tests/third
   passed).  `MPI_Abort` with code 0 does not reliably end the other PEs.
 - Concurrent `shmem_malloc`-family calls from several threads must be serialized by the application (they are collective;
   concurrent collectives on one team are undefined in the spec).
-- Locks: all locks share one global MCS queue regardless of the lock variable.  Correct, but over-serialized, and holding
-  one lock while setting another can deadlock.  Rewrite planned (`docs/DEVELOPMENT_PLAN.md`).
+- Threads: with MPI_THREAD_MULTIPLE every MPI RMA, flush and sync call is serialized by one mutex, because Open MPI's osc/ucx
+  and osc/rdma hang with concurrent RMA from several threads.  Operations on the symmetric heap with direct access enabled do
+  not touch MPI at all.  Open MPI 5.x osc/ucx can still crash when a thread exits while others issue RMA (fixed or rarer in 6.0).
 - `shmem_quiet`/`shmem_fence` flush all outstanding RMA on the PE, which is stronger than the spec requires.
 - Static/global symmetric data on macOS uses the main executable's `__DATA` segment.
 
