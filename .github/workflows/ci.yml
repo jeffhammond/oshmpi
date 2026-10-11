@@ -70,3 +70,79 @@ jobs:
           cat config.log || true
           cat test-suite.log || true
           find . -name "*.log" -exec head -n 100 {} ";"
+
+  # Open MPI 6.0 supports MPI_Win_shared_query on allocated windows (MPI 4.1), so this is where
+  # OSHMPI's run-time detection of direct access to the symmetric heap is exercised.  Open MPI is
+  # built from the v6.0.x branch and cached by commit.  Ubuntu's packaged Open MPI is too old.
+  openmpi6:
+    name: ubuntu gcc Open MPI 6.0 direct=${{ matrix.direct }}
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        direct: [auto, off]
+    env:
+      OMPI_REF: v6.0.x
+      OMPI_PREFIX: ${{ github.workspace }}/ompi6
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y autoconf automake libtool m4 flex perl python3 gcc g++ make
+
+      - name: Resolve the Open MPI commit
+        id: ompi
+        run: echo "sha=$(git ls-remote https://github.com/open-mpi/ompi.git refs/heads/$OMPI_REF | cut -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Open MPI
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.OMPI_PREFIX }}
+          key: ompi6-${{ runner.os }}-${{ steps.ompi.outputs.sha }}
+
+      - name: Build Open MPI
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$OMPI_REF" --recurse-submodules --shallow-submodules https://github.com/open-mpi/ompi.git ompi-src
+          cd ompi-src
+          ./autogen.pl
+          ./configure --prefix="$OMPI_PREFIX" --without-ucx --disable-mpi-fortran --disable-mpi-java --disable-man-pages
+          make -j"$(nproc)"
+          make install
+
+      - name: Configure and build OSHMPI
+        run: |
+          export PATH="$OMPI_PREFIX/bin:$PATH" LD_LIBRARY_PATH="$OMPI_PREFIX/lib:${LD_LIBRARY_PATH:-}"
+          ./autogen.sh
+          ./configure CC=mpicc CFLAGS="-g -std=gnu11" --enable-g --disable-static
+          make -j2
+
+      - name: Test
+        env:
+          SHMEM_SYMMETRIC_HEAP_SIZE: 100M
+          TMPDIR: /tmp
+          OMPI_MCA_rmaps_base_oversubscribe: "1"
+          PRTE_MCA_rmaps_default_mapping_policy: ":oversubscribe"
+          OSHMPI_DIRECT: ${{ matrix.direct == 'off' && '0' || '' }}
+          OSHMPI_VERBOSE: "1"
+        run: |
+          export PATH="$OMPI_PREFIX/bin:$PATH" LD_LIBRARY_PATH="$OMPI_PREFIX/lib:${LD_LIBRARY_PATH:-}"
+          make check
+
+      - name: Check that direct heap access was (or was not) used
+        run: |
+          if [ "${{ matrix.direct }}" = auto ]; then want="direct access to the symmetric heap is enabled"
+          else want="direct access to the symmetric heap is disabled by OSHMPI_DIRECT"; fi
+          missing=$(grep -L "$want" tests/*.log || true)
+          if [ -n "$missing" ]; then echo "expected '$want' in:"; echo "$missing"; exit 1; fi
+
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          cat config.log || true
+          cat test-suite.log || true
+          find . -name "*.log" -exec head -n 100 {} ";"
