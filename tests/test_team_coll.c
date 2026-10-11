@@ -139,6 +139,22 @@ static void run_reductions(shmem_team_t team)
     su[0] = (unsigned char) (1u << (tr % 8));
     CHECK(shmem_or_reduce(team, du, su, 1) == 0, "generic or rc");
     { unsigned char e = 0; for (int q = 0; q < tn; q++) e |= (unsigned char) (1u << (q % 8)); CHECK(du[0] == e, "generic or"); }
+    /* the signed types select the exact-width int8..int64 bitwise reductions */
+    { int *sx = SRC(int), *dx = DST(int);
+      sx[0] = 1 << (tr % 16);
+      CHECK(shmem_xor_reduce(team, dx, sx, 1) == 0, "generic xor on int rc");
+      int e = 0; for (int q = 0; q < tn; q++) e ^= 1 << (q % 16);
+      CHECK(dx[0] == e, "generic xor on int");
+      long *sy = SRC(long), *dy = DST(long);
+      sy[0] = 1L << (tr % 40);
+      CHECK(shmem_or_reduce(team, dy, sy, 1) == 0, "generic or on long rc");
+      long el = 0; for (int q = 0; q < tn; q++) el |= 1L << (q % 40);
+      CHECK(dy[0] == el, "generic or on long");
+      short *sz = SRC(short), *dz = DST(short);
+      sz[0] = (short) (1 << (tr % 8));
+      CHECK(shmem_and_reduce(team, dz, sz, 1) == 0, "generic and on short rc");
+      short ez = (short) 0xFF; for (int q = 0; q < tn; q++) ez = (short) (ez & (1 << (q % 8)));
+      CHECK(dz[0] == ez, "generic and on short"); }
 }
 
 /* ---- data movement collectives */

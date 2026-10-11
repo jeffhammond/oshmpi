@@ -223,32 +223,95 @@ OSHMPI_TEAM_RED_SUMPROD_TYPES(OSHMPI_TEAM_RED_DECL_SUMPROD)
              unsigned long long *: shmem_ulonglong_alltoalls  \
             )(team, dest, source, dst, sst, nelems)
 
+#if __SIZEOF_LONG__ == 8
 #define shmem_and_reduce(team, dest, source, nreduce) \
     _Generic(&(dest)[0],  \
              unsigned char *: shmem_uchar_and_reduce,  \
              unsigned short *: shmem_ushort_and_reduce,  \
              unsigned int *: shmem_uint_and_reduce,  \
              unsigned long *: shmem_ulong_and_reduce,  \
-             unsigned long long *: shmem_ulonglong_and_reduce  \
+             unsigned long long *: shmem_ulonglong_and_reduce,  \
+             signed char *: shmem_int8_and_reduce,  \
+             short *: shmem_int16_and_reduce,  \
+             int *: shmem_int32_and_reduce,  \
+             long long *: shmem_int64_and_reduce,  \
+             long *: shmem_int64_and_reduce  \
             )(team, dest, source, nreduce)
+#else
+#define shmem_and_reduce(team, dest, source, nreduce) \
+    _Generic(&(dest)[0],  \
+             unsigned char *: shmem_uchar_and_reduce,  \
+             unsigned short *: shmem_ushort_and_reduce,  \
+             unsigned int *: shmem_uint_and_reduce,  \
+             unsigned long *: shmem_ulong_and_reduce,  \
+             unsigned long long *: shmem_ulonglong_and_reduce,  \
+             signed char *: shmem_int8_and_reduce,  \
+             short *: shmem_int16_and_reduce,  \
+             int *: shmem_int32_and_reduce,  \
+             long long *: shmem_int64_and_reduce,  \
+             long *: shmem_int32_and_reduce  \
+            )(team, dest, source, nreduce)
+#endif
 
+#if __SIZEOF_LONG__ == 8
 #define shmem_or_reduce(team, dest, source, nreduce) \
     _Generic(&(dest)[0],  \
              unsigned char *: shmem_uchar_or_reduce,  \
              unsigned short *: shmem_ushort_or_reduce,  \
              unsigned int *: shmem_uint_or_reduce,  \
              unsigned long *: shmem_ulong_or_reduce,  \
-             unsigned long long *: shmem_ulonglong_or_reduce  \
+             unsigned long long *: shmem_ulonglong_or_reduce,  \
+             signed char *: shmem_int8_or_reduce,  \
+             short *: shmem_int16_or_reduce,  \
+             int *: shmem_int32_or_reduce,  \
+             long long *: shmem_int64_or_reduce,  \
+             long *: shmem_int64_or_reduce  \
             )(team, dest, source, nreduce)
+#else
+#define shmem_or_reduce(team, dest, source, nreduce) \
+    _Generic(&(dest)[0],  \
+             unsigned char *: shmem_uchar_or_reduce,  \
+             unsigned short *: shmem_ushort_or_reduce,  \
+             unsigned int *: shmem_uint_or_reduce,  \
+             unsigned long *: shmem_ulong_or_reduce,  \
+             unsigned long long *: shmem_ulonglong_or_reduce,  \
+             signed char *: shmem_int8_or_reduce,  \
+             short *: shmem_int16_or_reduce,  \
+             int *: shmem_int32_or_reduce,  \
+             long long *: shmem_int64_or_reduce,  \
+             long *: shmem_int32_or_reduce  \
+            )(team, dest, source, nreduce)
+#endif
 
+#if __SIZEOF_LONG__ == 8
 #define shmem_xor_reduce(team, dest, source, nreduce) \
     _Generic(&(dest)[0],  \
              unsigned char *: shmem_uchar_xor_reduce,  \
              unsigned short *: shmem_ushort_xor_reduce,  \
              unsigned int *: shmem_uint_xor_reduce,  \
              unsigned long *: shmem_ulong_xor_reduce,  \
-             unsigned long long *: shmem_ulonglong_xor_reduce  \
+             unsigned long long *: shmem_ulonglong_xor_reduce,  \
+             signed char *: shmem_int8_xor_reduce,  \
+             short *: shmem_int16_xor_reduce,  \
+             int *: shmem_int32_xor_reduce,  \
+             long long *: shmem_int64_xor_reduce,  \
+             long *: shmem_int64_xor_reduce  \
             )(team, dest, source, nreduce)
+#else
+#define shmem_xor_reduce(team, dest, source, nreduce) \
+    _Generic(&(dest)[0],  \
+             unsigned char *: shmem_uchar_xor_reduce,  \
+             unsigned short *: shmem_ushort_xor_reduce,  \
+             unsigned int *: shmem_uint_xor_reduce,  \
+             unsigned long *: shmem_ulong_xor_reduce,  \
+             unsigned long long *: shmem_ulonglong_xor_reduce,  \
+             signed char *: shmem_int8_xor_reduce,  \
+             short *: shmem_int16_xor_reduce,  \
+             int *: shmem_int32_xor_reduce,  \
+             long long *: shmem_int64_xor_reduce,  \
+             long *: shmem_int32_xor_reduce  \
+            )(team, dest, source, nreduce)
+#endif
 
 #define shmem_max_reduce(team, dest, source, nreduce) \
     _Generic(&(dest)[0],  \
