@@ -17,33 +17,14 @@ void shmemx_ct_free(shmemx_ct_t *ct)
 
 long shmemx_ct_get(shmemx_ct_t ct)
 {
-#ifdef ENABLE_SMP_OPTIMIZATIONS
-    if (shmem_world_is_smp) {
-        return __sync_fetch_and_add(ct,0);
-    } else
-#endif
-    {
-        shmem_offset_t win_offset = (ptrdiff_t)((intptr_t)ct - (intptr_t)shmem_sheap_base_ptr);
-        long output;
-        OSHMPI_MPI_RMA(MPI_Fetch_and_op(NULL, &output, MPI_LONG, shmem_world_rank, win_offset, MPI_NO_OP, shmem_sheap_win));
-        OSHMPI_MPI_RMA(MPI_Win_flush_local(shmem_world_rank, shmem_sheap_win));
-        return output;
-    }
+    long output;
+    oshmpi_fetch(MPI_LONG, &output, ct, shmem_world_rank);
+    return output;
 }
 
 void shmemx_ct_set(shmemx_ct_t ct, long value)
 {
-#ifdef ENABLE_SMP_OPTIMIZATIONS
-    if (shmem_world_is_smp) {
-        __sync_lock_test_and_set(ct,value);
-    } else
-#endif
-    {
-        shmem_offset_t win_offset = (ptrdiff_t)((intptr_t)ct - (intptr_t)shmem_sheap_base_ptr);
-        OSHMPI_MPI_RMA(MPI_Fetch_and_op(&value, NULL, MPI_LONG, shmem_world_rank, win_offset, MPI_REPLACE, shmem_sheap_win));
-        OSHMPI_MPI_RMA(MPI_Win_flush(shmem_world_rank, shmem_sheap_win));
-    }
-    return;
+    oshmpi_set(MPI_LONG, ct, &value, shmem_world_rank);
 }
 
 void shmemx_ct_wait(shmemx_ct_t ct, long wait_for)

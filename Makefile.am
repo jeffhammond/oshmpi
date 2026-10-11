@@ -25,6 +25,7 @@ include_HEADERS = src/shmem.h \
 		  src/shmem14-generic.h \
 		  src/shmemx.h \
 		  src/shmem-internals.h \
+		  src/oshmpi-direct.h \
 		  src/shmem-wait.h \
 		  src/dlmalloc.h \
 		  src/compiler-utils.h \

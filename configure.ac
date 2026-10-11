@@ -127,17 +127,6 @@ fi
 # OSHMPI-specific feature control
 #
 
-# SMP opts
-AC_ARG_ENABLE(smp-optimizations,
-              AC_HELP_STRING([--enable-smp-optimizations],[Enable SMP optimizations (i.e. MPI bypass)]),
-              [ smp_optimizations_enabled=yes ],
-              [ smp_optimizations_enabled=no ])
-AC_MSG_CHECKING(whether SMP optimizations (i.e. MPI bypass) are enabled)
-AC_MSG_RESULT($smp_optimizations_enabled)
-if test "$smp_optimizations_enabled" = "yes"; then
-   AC_DEFINE(ENABLE_SMP_OPTIMIZATIONS,1,[Defined when whether SMP optimizations (i.e. MPI bypass) are enabled])
-fi
-
 # MPMD
 AC_ARG_ENABLE(mpmd-support,
               AC_HELP_STRING([--enable-mpmd-support],[Enable MPMD support]),

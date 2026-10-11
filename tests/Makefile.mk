@@ -23,6 +23,7 @@ check_PROGRAMS += tests/barrier_performance \
                   tests/test_spin \
                   tests/test_mt_rma \
                   tests/test_lock_multi \
+                  tests/test_direct \
                   # end
 
 TESTS += tests/barrier_performance \
@@ -45,6 +46,7 @@ TESTS += tests/barrier_performance \
          tests/test_spin \
          tests/test_mt_rma \
          tests/test_lock_multi \
+         tests/test_direct \
          # end
 
 tests_barrier_performance_LDADD = libshmem.la
@@ -69,3 +71,4 @@ tests_test_spin_LDADD = libshmem.la
 tests_test_mt_rma_LDADD = libshmem.la
 tests_test_mt_rma_LDFLAGS = -pthread
 tests_test_lock_multi_LDADD = libshmem.la
+tests_test_direct_LDADD = libshmem.la

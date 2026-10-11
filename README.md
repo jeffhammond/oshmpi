@@ -53,11 +53,20 @@ To this end, we support all valid performance-related info
 keys and ensure the correct semantics when they are enabled
 and disabled.
 
-When OSHMPI is used within an SMP, we employ shared-memory 
-windows to bypass MPI in Put, Get and Atomic operations to use only
-load-store instructions or GCC intrinsics.
-However, for strided, we still use MPI within an SMP because the lead
-developer is a lazy bum.
+Direct access to the symmetric heap is detected at run time.  The heap is always
+created with `MPI_Win_allocate`; at startup OSHMPI calls `MPI_Win_shared_query`
+(which MPI 4.1 allows on any allocated window) for every PE.  If every PE's heap
+is mapped into the calling process, which in practice means the job runs on one
+node and the MPI library supports it (Open MPI 6.0 and later does, for osc/ucx,
+osc/rdma and osc/sm), all operations on the heap bypass MPI: puts, gets and strided
+transfers are `memcpy`s, and every atomic is a GCC/Clang `__atomic` builtin.  Direct
+access is all or nothing across the job, so hardware atomics are never mixed with
+MPI atomics on the same word, and `shmem_ptr` returns usable addresses.  The data
+segment still uses MPI.  With an MPI library that does not support the query,
+OSHMPI uses MPI RMA for everything, as before.
+
+Two environment variables control this: `OSHMPI_DIRECT=0` forces MPI RMA, and
+`OSHMPI_VERBOSE=1` makes PE 0 report whether direct access is enabled.
 
 Future Work
 ===========

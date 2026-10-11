@@ -1,5 +1,6 @@
 /* BSD-2 License.  Written by Jeff Hammond. */
 
+#include <strings.h>
 #include "shmem-internals.h"
 
 /* Definitions of the globals declared extern in shmem-internals.h. */
@@ -11,14 +12,8 @@ int       shmem_thread_provided;
 int       shmem_is_finalized;
 int       shmem_world_size, shmem_world_rank;
 char      shmem_procname[MPI_MAX_PROCESSOR_NAME];
-#ifdef ENABLE_SMP_OPTIMIZATIONS
-MPI_Comm  SHMEM_COMM_NODE;
-MPI_Group SHMEM_GROUP_NODE;
-int       shmem_world_is_smp;
-int       shmem_node_size, shmem_node_rank;
-int *     shmem_smp_rank_list;
-void **   shmem_smp_sheap_ptrs;
-#endif
+int       shmem_sheap_direct;
+char **   shmem_sheap_peer_base;
 MPI_Win shmem_etext_win;
 int     shmem_etext_size;
 void *  shmem_etext_base_ptr;
@@ -101,14 +96,6 @@ extern int       shmem_is_finalized;
 extern int       shmem_world_size, shmem_world_rank;
 extern char      shmem_procname[MPI_MAX_PROCESSOR_NAME];
 
-#ifdef ENABLE_SMP_OPTIMIZATIONS
-extern MPI_Comm  SHMEM_COMM_NODE;
-extern MPI_Group SHMEM_GROUP_NODE; /* may not be needed as global */
-extern int       shmem_world_is_smp;
-extern int       shmem_node_size, shmem_node_rank;
-extern int *     shmem_smp_rank_list;
-extern void **   shmem_smp_sheap_ptrs;
-#endif
 
 /* TODO probably want to make these 5 things into a struct typedef */
 extern MPI_Win shmem_etext_win;
@@ -136,6 +123,64 @@ static inline int OSHMPI_Type_size(MPI_Datatype mpi_type)
     int type_size;
     MPI_Type_size(mpi_type, &type_size);
     return type_size;
+}
+
+/*****************************************************************/
+
+/* Detect, at run time, whether every PE's symmetric heap is directly addressable here (see
+ * oshmpi-direct.h).  Collective on SHMEM_COMM_WORLD: either every PE uses the direct path or
+ * none does, so hardware atomics and MPI atomics never touch the same heap word.
+ * OSHMPI_DIRECT=0 turns it off. */
+void oshmpi_direct_init(MPI_Win win)
+{
+    const char * env = getenv("OSHMPI_DIRECT");
+    int wanted = !(env != NULL && (!strcmp(env, "0") || !strcasecmp(env, "off") ||
+                                   !strcasecmp(env, "no") || !strcasecmp(env, "false")));
+    int ok = wanted;
+    char ** base = NULL;
+
+    if (ok) {
+        base = malloc(shmem_world_size * sizeof(char *));
+        assert(base != NULL);
+
+        /* Before MPI 4.1, and where the memory is not shared, the query raises an error. */
+        MPI_Errhandler old;
+        MPI_Win_get_errhandler(win, &old);
+        MPI_Win_set_errhandler(win, MPI_ERRORS_RETURN);
+        for (int r = 0; r < shmem_world_size && ok; r++) {
+            MPI_Aint size = 0;
+            int disp = 0;
+            void * ptr = NULL;
+            int rc = MPI_Win_shared_query(win, r, &size, &disp, &ptr);
+            if (rc != MPI_SUCCESS || ptr == NULL || size < (MPI_Aint) shmem_sheap_size) ok = 0;
+            base[r] = (r == shmem_world_rank) ? (char *) shmem_sheap_base_ptr : (char *) ptr;
+        }
+        MPI_Win_set_errhandler(win, old);
+        MPI_Errhandler_free(&old);
+    }
+
+    int all_ok;
+    MPI_Allreduce(&ok, &all_ok, 1, MPI_INT, MPI_MIN, SHMEM_COMM_WORLD);
+
+    if (all_ok) {
+        shmem_sheap_peer_base = base;
+        shmem_sheap_direct = 1;
+    } else {
+        free(base);
+        shmem_sheap_peer_base = NULL;
+        shmem_sheap_direct = 0;
+    }
+    if (shmem_world_rank == 0 && getenv("OSHMPI_VERBOSE") != NULL) {
+        printf("OSHMPI direct access to the symmetric heap is %s\n",
+               all_ok ? "enabled" : (wanted ? "not available" : "disabled by OSHMPI_DIRECT"));
+    }
+}
+
+void oshmpi_direct_finalize(void)
+{
+    free(shmem_sheap_peer_base);
+    shmem_sheap_peer_base = NULL;
+    shmem_sheap_direct = 0;
 }
 
 /*****************************************************************/
@@ -352,49 +397,6 @@ void oshmpi_initialize(int threading)
         MPI_Info_set(etext_info, "accumulate_ordering", "");
 #endif
 
-#ifdef ENABLE_SMP_OPTIMIZATIONS
-        {
-            MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0 /* key */, MPI_INFO_NULL, &SHMEM_COMM_NODE);
-            MPI_Comm_size(SHMEM_COMM_NODE, &shmem_node_size);
-            MPI_Comm_rank(SHMEM_COMM_NODE, &shmem_node_rank);
-            MPI_Comm_group(SHMEM_COMM_NODE, &SHMEM_GROUP_NODE);
-
-            int result;
-            MPI_Comm_compare(SHMEM_COMM_WORLD, SHMEM_COMM_NODE, &result);
-            shmem_world_is_smp = (result==MPI_IDENT || result==MPI_CONGRUENT) ? 1 : 0;
-
-            shmem_smp_rank_list  = (int*) malloc( shmem_node_size*sizeof(int) );
-            int * temp_rank_list = (int*) malloc( shmem_node_size*sizeof(int) );
-            for (int i=0; i<shmem_node_size; i++) {
-                temp_rank_list[i] = i;
-            }
-            /* translate ranks in the node group to world ranks */
-            MPI_Group_translate_ranks(SHMEM_GROUP_NODE,  shmem_node_size, temp_rank_list, 
-                                      SHMEM_GROUP_WORLD, shmem_smp_rank_list);
-            free(temp_rank_list);
-        }
-
-        if (shmem_world_is_smp) {
-            /* There is no performance advantage associated with a contiguous layout of shared memory. */
-            MPI_Info_set(sheap_info, "alloc_shared_noncontig", "true");
-
-            int rc = MPI_Win_allocate_shared((MPI_Aint)(shmem_sheap_size + 128*sizeof(size_t)), 1 /* disp_unit */, sheap_info,
-                                             SHMEM_COMM_WORLD, &shmem_sheap_base_ptr, &shmem_sheap_win);
-            if (rc!=MPI_SUCCESS) {
-                char errmsg[MPI_MAX_ERROR_STRING];
-                int errlen;
-                MPI_Error_string(rc, errmsg, &errlen);
-                printf("MPI_Win_allocate_shared error message = %s\n",errmsg);
-                oshmpi_abort(rc, "MPI_Win_allocate_shared failed\n");
-            }
-            shmem_smp_sheap_ptrs = malloc( shmem_node_size * sizeof(void*) ); assert(shmem_smp_sheap_ptrs!=NULL);
-            for (int rank=0; rank<shmem_node_size; rank++) {
-                MPI_Aint size; /* unused */
-                int      disp; /* unused */
-                MPI_Win_shared_query(shmem_sheap_win, rank, &size, &disp, &shmem_smp_sheap_ptrs[rank]);
-            }
-        } else 
-#endif
         {
             MPI_Info_set(sheap_info, "alloc_shm", "true");
             int rc = MPI_Win_allocate((MPI_Aint)(shmem_sheap_size + 128*sizeof(size_t)), 1 /* disp_unit */, sheap_info,
@@ -414,6 +416,7 @@ void oshmpi_initialize(int threading)
 	/* Part (less than 128*sizeof(size_t) bytes) of this space is used for bookkeeping, 
 	 * so the capacity must be at least this large */
 	shmem_sheap_size += 128*sizeof(size_t);
+        oshmpi_direct_init(shmem_sheap_win);
 #if SHMEM_DEBUG > 5
         printf("[%d] shmem_sheap_base_ptr=%p\n", shmem_world_rank, shmem_sheap_base_ptr);
 #endif
@@ -526,13 +529,7 @@ void oshmpi_finalize(void)
             MPI_Win_unlock_all(shmem_sheap_win);
             MPI_Win_free(&shmem_sheap_win);
 
-#ifdef ENABLE_SMP_OPTIMIZATIONS
-            if (shmem_world_is_smp)
-                free(shmem_smp_sheap_ptrs);
-            free(shmem_smp_rank_list);
-            MPI_Group_free(&SHMEM_GROUP_NODE);
-            MPI_Comm_free(&SHMEM_COMM_NODE);
-#endif
+            oshmpi_direct_finalize();
 
             MPI_Group_free(&SHMEM_GROUP_WORLD);
             MPI_Comm_free(&SHMEM_COMM_WORLD);
@@ -556,6 +553,7 @@ void oshmpi_finalize(void)
 
 void oshmpi_remote_sync(void)
 {
+    __atomic_thread_fence(__ATOMIC_SEQ_CST); /* direct stores to the heap */
     OSHMPI_MPI_RMA(MPI_Win_flush_all(shmem_sheap_win));
     OSHMPI_MPI_RMA(MPI_Win_flush_all(shmem_etext_win));
 }
@@ -568,9 +566,7 @@ void oshmpi_remote_sync_pe(int pe)
 
 void oshmpi_local_sync(void)
 {
-#ifdef ENABLE_SMP_OPTIMIZATIONS
-    __sync_synchronize();
-#endif
+    __atomic_thread_fence(__ATOMIC_SEQ_CST);
     OSHMPI_MPI_RMA(MPI_Win_sync(shmem_sheap_win));
     OSHMPI_MPI_RMA(MPI_Win_sync(shmem_etext_win));
 }
@@ -626,6 +622,10 @@ void oshmpi_put(MPI_Datatype mpi_type, void *target, const void *source, size_t 
 {
     if (len == 0) return; /* zero-length transfers are no-ops; pointers need not be valid */
 
+    {
+        void *dp = oshmpi_direct_ptr(target, pe);
+        if (dp) { memcpy(dp, source, len * (size_t) oshmpi_type_size(mpi_type)); return; }
+    }
     enum shmem_window_id_e win_id;
     shmem_offset_t win_offset;
 
@@ -647,13 +647,6 @@ void oshmpi_put(MPI_Datatype mpi_type, void *target, const void *source, size_t 
 
     MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
 
-#ifdef ENABLE_SMP_OPTIMIZATIONS
-    if (shmem_world_is_smp && win_id==SHMEM_SHEAP_WINDOW) {
-        int type_size = OSHMPI_Type_size(mpi_type);
-        void * ptr = (void*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)target - (intptr_t)shmem_sheap_base_ptr) );
-        memcpy(ptr, source, len*type_size);
-    } else
-#endif
     {
         int count = 0;
         MPI_Datatype tmp_type;
@@ -688,6 +681,10 @@ void oshmpi_get(MPI_Datatype mpi_type, void *target, const void *source, size_t 
 {
     if (len == 0) return; /* zero-length transfers are no-ops; pointers need not be valid */
 
+    {
+        void *dp = oshmpi_direct_ptr(source, pe);
+        if (dp) { memcpy(target, dp, len * (size_t) oshmpi_type_size(mpi_type)); __atomic_thread_fence(__ATOMIC_ACQUIRE); return; }
+    }
     enum shmem_window_id_e win_id;
     shmem_offset_t win_offset;
 
@@ -708,13 +705,6 @@ void oshmpi_get(MPI_Datatype mpi_type, void *target, const void *source, size_t 
 #endif
 
     MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
-#ifdef ENABLE_SMP_OPTIMIZATIONS
-    if (shmem_world_is_smp && win_id==SHMEM_SHEAP_WINDOW) {
-        int type_size = OSHMPI_Type_size(mpi_type);
-        void * ptr = (void*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)source - (intptr_t)shmem_sheap_base_ptr) );
-        memcpy(target, ptr, len*type_size);
-    } else 
-#endif
     {
         int count = 0;
         MPI_Datatype tmp_type;
@@ -750,6 +740,10 @@ void oshmpi_put_nbi(MPI_Datatype mpi_type, void *target, const void *source, siz
 {
     if (len == 0) return; /* zero-length transfers are no-ops; pointers need not be valid */
 
+    {
+        void *dp = oshmpi_direct_ptr(target, pe);
+        if (dp) { memcpy(dp, source, len * (size_t) oshmpi_type_size(mpi_type)); return; }
+    }
     enum shmem_window_id_e win_id;
     shmem_offset_t win_offset;
 
@@ -771,13 +765,6 @@ void oshmpi_put_nbi(MPI_Datatype mpi_type, void *target, const void *source, siz
 
     MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
 
-#ifdef ENABLE_SMP_OPTIMIZATIONS
-    if (shmem_world_is_smp && win_id==SHMEM_SHEAP_WINDOW) {
-        int type_size = OSHMPI_Type_size(mpi_type);
-        void * ptr = (void*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)target - (intptr_t)shmem_sheap_base_ptr) );
-        memcpy(ptr, source, len*type_size);
-    } else
-#endif
     {
         int count = 0;
         MPI_Datatype tmp_type;
@@ -811,6 +798,10 @@ void oshmpi_get_nbi(MPI_Datatype mpi_type, void *target, const void *source, siz
 {
     if (len == 0) return; /* zero-length transfers are no-ops; pointers need not be valid */
 
+    {
+        void *dp = oshmpi_direct_ptr(source, pe);
+        if (dp) { memcpy(target, dp, len * (size_t) oshmpi_type_size(mpi_type)); __atomic_thread_fence(__ATOMIC_ACQUIRE); return; }
+    }
     enum shmem_window_id_e win_id;
     shmem_offset_t win_offset;
 
@@ -831,13 +822,6 @@ void oshmpi_get_nbi(MPI_Datatype mpi_type, void *target, const void *source, siz
 #endif
 
     MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
-#ifdef ENABLE_SMP_OPTIMIZATIONS
-    if (shmem_world_is_smp && win_id==SHMEM_SHEAP_WINDOW) {
-        int type_size = OSHMPI_Type_size(mpi_type);
-        void * ptr = (void*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)source - (intptr_t)shmem_sheap_base_ptr) );
-        memcpy(target, ptr, len*type_size);
-    } else
-#endif
     {
         int count = 0;
         MPI_Datatype tmp_type;
@@ -887,6 +871,10 @@ void oshmpi_put_strided(MPI_Datatype mpi_type, void *target, const void *source,
         oshmpi_abort(len%INT32_MAX, "oshmpi_put_strided: count exceeds the range of a 32b integer");
     }
 
+    {
+        void *dp = oshmpi_direct_ptr(target, pe);
+        if (dp) { oshmpi_direct_strided(dp, target_ptrdiff, source, source_ptrdiff, len, (size_t) oshmpi_type_size(mpi_type)); return; }
+    }
     enum shmem_window_id_e win_id;
     shmem_offset_t win_offset;
 
@@ -900,11 +888,6 @@ void oshmpi_put_strided(MPI_Datatype mpi_type, void *target, const void *source,
 #endif
 
     MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
-#ifdef ENABLE_SMP_OPTIMIZATIONS
-    if (0) {
-        /* TODO */
-    } else
-#endif
     {
         assert( (ptrdiff_t)INT32_MIN<target_ptrdiff && target_ptrdiff<(ptrdiff_t)INT32_MAX );
         assert( (ptrdiff_t)INT32_MIN<source_ptrdiff && source_ptrdiff<(ptrdiff_t)INT32_MAX );
@@ -965,6 +948,10 @@ void oshmpi_get_strided(MPI_Datatype mpi_type, void *target, const void *source,
         oshmpi_abort(len%INT32_MAX, "oshmpi_get_strided: count exceeds the range of a 32b integer");
     }
 
+    {
+        void *dp = oshmpi_direct_ptr(source, pe);
+        if (dp) { oshmpi_direct_strided(target, target_ptrdiff, dp, source_ptrdiff, len, (size_t) oshmpi_type_size(mpi_type)); __atomic_thread_fence(__ATOMIC_ACQUIRE); return; }
+    }
     enum shmem_window_id_e win_id;
     shmem_offset_t win_offset;
 
@@ -978,11 +965,6 @@ void oshmpi_get_strided(MPI_Datatype mpi_type, void *target, const void *source,
 #endif
 
     MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
-#ifdef ENABLE_SMP_OPTIMIZATIONS
-    if (0) {
-        /* TODO */
-    } else 
-#endif
     {
         assert( (ptrdiff_t)INT32_MIN<target_ptrdiff && target_ptrdiff<(ptrdiff_t)INT32_MAX );
         assert( (ptrdiff_t)INT32_MIN<source_ptrdiff && source_ptrdiff<(ptrdiff_t)INT32_MAX );
@@ -1026,6 +1008,13 @@ void oshmpi_get_strided(MPI_Datatype mpi_type, void *target, const void *source,
 
 void oshmpi_set(MPI_Datatype mpi_type, void *remote, const void *input, int pe)
 {
+    {
+        void *dp = oshmpi_direct_ptr(remote, pe);
+        if (dp) {
+            if (!oshmpi_direct_rmw(mpi_type, MPI_REPLACE, dp, input, NULL, NULL)) oshmpi_abort(pe, "unsupported atomic datatype");
+            return;
+        }
+    }
     enum shmem_window_id_e win_id;
     shmem_offset_t win_offset;
 
@@ -1035,30 +1024,6 @@ void oshmpi_set(MPI_Datatype mpi_type, void *remote, const void *input, int pe)
 
     MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
 
-#ifdef ENABLE_SMP_OPTIMIZATIONS
-    if (shmem_world_is_smp && win_id==SHMEM_SHEAP_WINDOW &&
-            (mpi_type==MPI_LONG || mpi_type==MPI_INT || mpi_type==MPI_LONG_LONG /* || mpi_type==MPIFLOAT || mpi_type==MPI_DOUBLE */) ) {
-        if (mpi_type==MPI_LONG) {
-            long * ptr = (long*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
-            long tmp = __sync_lock_test_and_set(ptr,*(long*)input);
-        } else if (mpi_type==MPI_INT) {
-            int * ptr = (int*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
-            int tmp = __sync_lock_test_and_set(ptr,*(int*)input);
-        } else if (mpi_type==MPI_LONG_LONG) {
-            long long * ptr = (long long*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
-            long long tmp = __sync_lock_test_and_set(ptr,*(long long*)input);
-#if 0
-        } else if (mpi_type==MPI_FLOAT) {
-            float * ptr = (float*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
-            float tmp = __sync_lock_test_and_set(ptr,*(int*)input);
-        } else if (mpi_type==MPI_DOUBLE) {
-            double * ptr = (double*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
-            double tmp = __sync_lock_test_and_set(ptr,*(long long*)input);
-#endif
-        }
-        /* GCC intrinsics give the wrong answer for double swap so we just avoid trying. */
-    } else
-#endif
     {
         OSHMPI_MPI_RMA(MPI_Accumulate(input, 1, mpi_type, pe, win_offset, 1, mpi_type, MPI_REPLACE, win));
         OSHMPI_MPI_RMA(MPI_Win_flush(pe, win));
@@ -1068,6 +1033,16 @@ void oshmpi_set(MPI_Datatype mpi_type, void *remote, const void *input, int pe)
 
 void oshmpi_fetch(MPI_Datatype mpi_type, void *output, OSHMPI_CONST void *remote, int pe)
 {
+    {
+        void *dp = oshmpi_direct_ptr(remote, pe);
+        if (dp) {
+            if (!oshmpi_direct_rmw(mpi_type, MPI_NO_OP, dp, NULL, NULL, output)) oshmpi_abort(pe, "unsupported atomic datatype");
+            /* A fetch of our own memory is a poll.  The data segment still uses MPI, so a PE
+             * spinning on a heap word must keep MPI progressing for the others' RMA to it. */
+            if (pe == shmem_world_rank) oshmpi_progress();
+            return;
+        }
+    }
     enum shmem_window_id_e win_id;
     shmem_offset_t win_offset;
 
@@ -1100,37 +1075,6 @@ void oshmpi_fetch(MPI_Datatype mpi_type, void *output, OSHMPI_CONST void *remote
         }
     }
 
-#ifdef ENABLE_SMP_OPTIMIZATIONS
-    if (shmem_world_is_smp && win_id==SHMEM_SHEAP_WINDOW &&
-            (mpi_type==MPI_LONG || mpi_type==MPI_INT || mpi_type==MPI_LONG_LONG /* || mpi_type==MPIFLOAT || mpi_type==MPI_DOUBLE */) ) {
-        if (mpi_type==MPI_LONG) {
-            long * ptr = (long*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
-            long tmp = __sync_fetch_and_add(ptr,0L);
-            *(long*)output = tmp;
-        } else if (mpi_type==MPI_INT) {
-            int * ptr = (int*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
-            int tmp = __sync_fetch_and_add(ptr,0);
-            *(int*)output = tmp;
-        } else if (mpi_type==MPI_LONG_LONG) {
-            long long * ptr = (long long*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
-            long long tmp = __sync_fetch_and_add(ptr,0LL);
-            *(long long*)output = tmp;
-        /* There have been problems with float/double atomics in the past.  These need careful verification. */
-#if 0
-        } else if (mpi_type==MPI_FLOAT) {
-            float * ptr = (float*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
-            float tmp = __sync_fetch_and_or(ptr,0); /* adding 0 may change NAN bits, etc */
-            *(float*)output = tmp;
-        } else if (mpi_type==MPI_DOUBLE) {
-            double * ptr = (double*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
-            double tmp = __sync_fetch_and_or(ptr,0); /* adding 0 may change NAN bits, etc */
-            *(double*)output = tmp;
-#endif
-        } else {
-            oshmpi_abort(pe, "oshmpi_fadd: invalid datatype");
-        }
-    } else
-#endif
     {
         OSHMPI_MPI_RMA(MPI_Fetch_and_op(NULL, output, mpi_type, pe, win_offset, MPI_NO_OP, win));
         OSHMPI_MPI_RMA(MPI_Win_flush(pe, win));
@@ -1139,6 +1083,13 @@ void oshmpi_fetch(MPI_Datatype mpi_type, void *output, OSHMPI_CONST void *remote
 }
 void oshmpi_swap(MPI_Datatype mpi_type, void *output, void *remote, const void *input, int pe)
 {
+    {
+        void *dp = oshmpi_direct_ptr(remote, pe);
+        if (dp) {
+            if (!oshmpi_direct_rmw(mpi_type, MPI_REPLACE, dp, input, NULL, output)) oshmpi_abort(pe, "unsupported atomic datatype");
+            return;
+        }
+    }
     enum shmem_window_id_e win_id;
     shmem_offset_t win_offset;
 
@@ -1148,25 +1099,6 @@ void oshmpi_swap(MPI_Datatype mpi_type, void *output, void *remote, const void *
 
     MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
 
-#ifdef ENABLE_SMP_OPTIMIZATIONS
-    if (shmem_world_is_smp && win_id==SHMEM_SHEAP_WINDOW &&
-            (mpi_type==MPI_LONG || mpi_type==MPI_INT || mpi_type==MPI_LONG_LONG) ) {
-        if (mpi_type==MPI_LONG) {
-            long * ptr = (long*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
-            long tmp = __sync_lock_test_and_set(ptr,*(long*)input);
-            *(long*)output = tmp;
-        } else if (mpi_type==MPI_INT) {
-            int * ptr = (int*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
-            int tmp = __sync_lock_test_and_set(ptr,*(int*)input);
-            *(int*)output = tmp;
-        } else if (mpi_type==MPI_LONG_LONG) {
-            long long * ptr = (long long*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
-            long long tmp = __sync_lock_test_and_set(ptr,*(long long*)input);
-            *(long long*)output = tmp;
-        }
-        /* GCC intrinsics give the wrong answer for double swap so we just avoid trying. */
-    } else
-#endif
     {
         OSHMPI_MPI_RMA(MPI_Fetch_and_op(input, output, mpi_type, pe, win_offset, MPI_REPLACE, win));
         OSHMPI_MPI_RMA(MPI_Win_flush(pe, win));
@@ -1176,6 +1108,13 @@ void oshmpi_swap(MPI_Datatype mpi_type, void *output, void *remote, const void *
 
 void oshmpi_cswap(MPI_Datatype mpi_type, void *output, void *remote, const void *input, const void *compare, int pe)
 {
+    {
+        void *dp = oshmpi_direct_ptr(remote, pe);
+        if (dp) {
+            if (!oshmpi_direct_rmw(mpi_type, MPI_REPLACE, dp, input, compare, output)) oshmpi_abort(pe, "unsupported atomic datatype");
+            return;
+        }
+    }
     enum shmem_window_id_e win_id;
     shmem_offset_t win_offset;
 
@@ -1185,25 +1124,6 @@ void oshmpi_cswap(MPI_Datatype mpi_type, void *output, void *remote, const void 
 
     MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
 
-#ifdef ENABLE_SMP_OPTIMIZATIONS
-    if (shmem_world_is_smp && win_id==SHMEM_SHEAP_WINDOW) {
-        if (mpi_type==MPI_LONG) {
-            long * ptr = (long*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
-            long tmp = __sync_val_compare_and_swap(ptr,*(long*)compare,*(long*)input);
-            *(long*)output = tmp;
-        } else if (mpi_type==MPI_INT) {
-            int * ptr = (int*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
-            int tmp = __sync_val_compare_and_swap(ptr,*(int*)compare,*(int*)input);
-            *(int*)output = tmp;
-        } else if (mpi_type==MPI_LONG_LONG) {
-            long long * ptr = (long long*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
-            long long tmp = __sync_val_compare_and_swap(ptr,*(long long*)compare,*(long long*)input);
-            *(long long*)output = tmp;
-        } else {
-            oshmpi_abort(pe, "oshmpi_cswap: invalid datatype");
-        }
-    } else
-#endif
     {
         OSHMPI_MPI_RMA(MPI_Compare_and_swap(input, compare, output, mpi_type, pe, win_offset, win));
         OSHMPI_MPI_RMA(MPI_Win_flush(pe, win));
@@ -1213,6 +1133,13 @@ void oshmpi_cswap(MPI_Datatype mpi_type, void *output, void *remote, const void 
 
 void oshmpi_add(MPI_Datatype mpi_type, void *remote, const void *input, int pe)
 {
+    {
+        void *dp = oshmpi_direct_ptr(remote, pe);
+        if (dp) {
+            if (!oshmpi_direct_rmw(mpi_type, MPI_SUM, dp, input, NULL, NULL)) oshmpi_abort(pe, "unsupported atomic datatype");
+            return;
+        }
+    }
     enum shmem_window_id_e win_id;
     shmem_offset_t win_offset;
 
@@ -1222,22 +1149,6 @@ void oshmpi_add(MPI_Datatype mpi_type, void *remote, const void *input, int pe)
 
     MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
 
-#ifdef ENABLE_SMP_OPTIMIZATIONS
-    if (shmem_world_is_smp && win_id==SHMEM_SHEAP_WINDOW) {
-        if (mpi_type==MPI_LONG) {
-            long * ptr = (long*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
-            __sync_fetch_and_add(ptr,*(long*)input);
-        } else if (mpi_type==MPI_INT) {
-            int * ptr = (int*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
-            __sync_fetch_and_add(ptr,*(int*)input);
-        } else if (mpi_type==MPI_LONG_LONG) {
-            long long * ptr = (long long*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
-            __sync_fetch_and_add(ptr,*(long long*)input);
-        } else {
-            oshmpi_abort(pe, "oshmpi_add: invalid datatype");
-        }
-    } else
-#endif
     {
         OSHMPI_MPI_RMA(MPI_Accumulate(input, 1, mpi_type, pe, win_offset, 1, mpi_type, MPI_SUM, win));
         OSHMPI_MPI_RMA(MPI_Win_flush_local(pe, win));
@@ -1247,6 +1158,13 @@ void oshmpi_add(MPI_Datatype mpi_type, void *remote, const void *input, int pe)
 
 void oshmpi_op(MPI_Datatype mpi_type, MPI_Op op, void *remote, const void *input, int pe)
 {
+    {
+        void *dp = oshmpi_direct_ptr(remote, pe);
+        if (dp) {
+            if (!oshmpi_direct_rmw(mpi_type, op, dp, input, NULL, NULL)) oshmpi_abort(pe, "unsupported atomic datatype");
+            return;
+        }
+    }
     enum shmem_window_id_e win_id;
     shmem_offset_t win_offset;
 
@@ -1262,6 +1180,13 @@ void oshmpi_op(MPI_Datatype mpi_type, MPI_Op op, void *remote, const void *input
 }
 void oshmpi_fetch_op(MPI_Datatype mpi_type, MPI_Op op, void *output, void *remote, const void *input, int pe)
 {
+    {
+        void *dp = oshmpi_direct_ptr(remote, pe);
+        if (dp) {
+            if (!oshmpi_direct_rmw(mpi_type, op, dp, input, NULL, output)) oshmpi_abort(pe, "unsupported atomic datatype");
+            return;
+        }
+    }
     enum shmem_window_id_e win_id;
     shmem_offset_t win_offset;
 
@@ -1277,6 +1202,13 @@ void oshmpi_fetch_op(MPI_Datatype mpi_type, MPI_Op op, void *output, void *remot
 }
 void oshmpi_fadd(MPI_Datatype mpi_type, void *output, void *remote, const void *input, int pe)
 {
+    {
+        void *dp = oshmpi_direct_ptr(remote, pe);
+        if (dp) {
+            if (!oshmpi_direct_rmw(mpi_type, MPI_SUM, dp, input, NULL, output)) oshmpi_abort(pe, "unsupported atomic datatype");
+            return;
+        }
+    }
     enum shmem_window_id_e win_id;
     shmem_offset_t win_offset;
 
@@ -1286,25 +1218,6 @@ void oshmpi_fadd(MPI_Datatype mpi_type, void *output, void *remote, const void *
 
     MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
 
-#ifdef ENABLE_SMP_OPTIMIZATIONS
-    if (shmem_world_is_smp && win_id==SHMEM_SHEAP_WINDOW) {
-        if (mpi_type==MPI_LONG) {
-            long * ptr = (long*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
-            long tmp = __sync_fetch_and_add(ptr,*(long*)input);
-            *(long*)output = tmp;
-        } else if (mpi_type==MPI_INT) {
-            int * ptr = (int*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
-            int tmp = __sync_fetch_and_add(ptr,*(int*)input);
-            *(int*)output = tmp;
-        } else if (mpi_type==MPI_LONG_LONG) {
-            long long * ptr = (long long*)( (intptr_t)shmem_smp_sheap_ptrs[pe] + ((intptr_t)remote - (intptr_t)shmem_sheap_base_ptr) );
-            long long tmp = __sync_fetch_and_add(ptr,*(long long*)input);
-            *(long long*)output = tmp;
-        } else {
-            oshmpi_abort(pe, "oshmpi_fadd: invalid datatype");
-        }
-    } else
-#endif
     {
         OSHMPI_MPI_RMA(MPI_Fetch_and_op(input, output, mpi_type, pe, win_offset, MPI_SUM, win));
         OSHMPI_MPI_RMA(MPI_Win_flush(pe, win));

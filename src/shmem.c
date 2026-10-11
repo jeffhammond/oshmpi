@@ -240,21 +240,9 @@ void shmem_fence(void)
 /* Remote Pointer Operations */
 void *shmem_ptr(OSHMPI_CONST void *target, int pe)
 {
-#ifdef ENABLE_SMP_OPTIMIZATIONS
-    enum shmem_window_id_e win_id;
-    shmem_offset_t win_offset;
-
-    if (oshmpi_window_offset(target, pe, &win_id, &win_offset)) {
-        oshmpi_abort(pe, "oshmpi_window_offset failed to find source");
-    }
-
-    if (shmem_world_is_smp && win_id==SHMEM_SHEAP_WINDOW) {
-        return (void*)(shmem_smp_sheap_ptrs[pe] + (target - shmem_sheap_base_ptr));
-    } else
-#endif
-    {
-        return (void*)(pe==shmem_world_rank ? target : NULL);
-    }
+    void *dp = oshmpi_direct_ptr(target, pe);
+    if (dp) return dp;
+    return (void*)(pe==shmem_world_rank ? target : NULL);
 }
 
 /* Elemental Put Routines */

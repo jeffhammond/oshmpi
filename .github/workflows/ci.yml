@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    name: ${{ matrix.os }} ${{ matrix.cc }} ${{ matrix.mpi }} smp=${{ matrix.smp }}
+    name: ${{ matrix.os }} ${{ matrix.cc }} ${{ matrix.mpi }} direct=${{ matrix.direct }}
     runs-on: ${{ matrix.os }}
     # Only Linux + GCC + MPICH is required to pass; the other combinations are
     # tracked but allowed to fail.
@@ -17,7 +17,8 @@ jobs:
         os: [ubuntu-latest, macos-latest]
         cc: [gcc, clang]
         mpi: [mpich, openmpi]
-        smp: [0, 1]
+        # OSHMPI_DIRECT: "auto" detects direct heap access at run time; "off" forces MPI RMA
+        direct: [auto, off]
 
     steps:
       - uses: actions/checkout@v4
@@ -49,14 +50,13 @@ jobs:
           OMPI_CC: ${{ matrix.cc }}
         run: |
           ./autogen.sh
-          smp=""
-          if [ "${{ matrix.smp }}" = 1 ]; then smp="--enable-smp-optimizations"; fi
-          ./configure CC=mpicc CFLAGS="-g -std=gnu11" --enable-g --disable-static $smp
+          ./configure CC=mpicc CFLAGS="-g -std=gnu11" --enable-g --disable-static
           make -j2
 
       - name: Test
         env:
           SHMEM_SYMMETRIC_HEAP_SIZE: 100M
+          OSHMPI_DIRECT: ${{ matrix.direct == 'off' && '0' || '' }}
           # see https://github.com/open-mpi/ompi/issues/2956
           TMPDIR: /tmp
           # Open MPI refuses to run as root or oversubscribe by default

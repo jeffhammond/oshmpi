@@ -22,6 +22,10 @@ void oshmpix_put_strided_2d(MPI_Datatype mpi_type, void *target, const void *sou
         oshmpi_abort(len%INT32_MAX, "oshmpix_put_strided_2d: count exceeds the range of a 32b integer");
     }
 
+    {
+        void *dp = oshmpi_direct_ptr(target, pe);
+        if (dp) { oshmpi_direct_strided(dp, target_ptrdiff, source, source_ptrdiff, len, (size_t) oshmpi_type_size(mpi_type)); return; }
+    }
     enum shmem_window_id_e win_id;
     shmem_offset_t win_offset;
 
@@ -35,11 +39,6 @@ void oshmpix_put_strided_2d(MPI_Datatype mpi_type, void *target, const void *sou
 #endif
 
     MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
-#ifdef ENABLE_SMP_OPTIMIZATIONS
-    if (0) {
-        /* TODO */
-    } else
-#endif
     {
         assert( (ptrdiff_t)INT32_MIN<target_ptrdiff && target_ptrdiff<(ptrdiff_t)INT32_MAX );
         assert( (ptrdiff_t)INT32_MIN<source_ptrdiff && source_ptrdiff<(ptrdiff_t)INT32_MAX );
@@ -98,6 +97,10 @@ void oshmpix_get_strided_2d(MPI_Datatype mpi_type, void *target, const void *sou
         oshmpi_abort(len%INT32_MAX, "oshmpix_get_strided_2d: count exceeds the range of a 32b integer");
     }
 
+    {
+        void *dp = oshmpi_direct_ptr(source, pe);
+        if (dp) { oshmpi_direct_strided(target, target_ptrdiff, dp, source_ptrdiff, len, (size_t) oshmpi_type_size(mpi_type)); __atomic_thread_fence(__ATOMIC_ACQUIRE); return; }
+    }
     enum shmem_window_id_e win_id;
     shmem_offset_t win_offset;
 
@@ -111,11 +114,6 @@ void oshmpix_get_strided_2d(MPI_Datatype mpi_type, void *target, const void *sou
 #endif
 
     MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
-#ifdef ENABLE_SMP_OPTIMIZATIONS
-    if (0) {
-        /* TODO */
-    } else
-#endif
     {
         assert( (ptrdiff_t)INT32_MIN<target_ptrdiff && target_ptrdiff<(ptrdiff_t)INT32_MAX );
         assert( (ptrdiff_t)INT32_MIN<source_ptrdiff && source_ptrdiff<(ptrdiff_t)INT32_MAX );

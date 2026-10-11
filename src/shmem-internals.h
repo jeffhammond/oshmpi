@@ -23,6 +23,7 @@
 
 #define ONLY_MSPACES 1
 #include <pthread.h>
+#include "oshmpi-direct.h"
 #include "dlmalloc.h"
 
 typedef MPI_Aint shmem_offset_t;
@@ -39,14 +40,6 @@ extern int       shmem_is_finalized;
 extern int       shmem_world_size, shmem_world_rank;
 extern char      shmem_procname[MPI_MAX_PROCESSOR_NAME];
 
-#ifdef ENABLE_SMP_OPTIMIZATIONS
-extern MPI_Comm  SHMEM_COMM_NODE;
-extern MPI_Group SHMEM_GROUP_NODE; /* may not be needed as global */
-extern int       shmem_world_is_smp;
-extern int       shmem_node_size, shmem_node_rank;
-extern int *     shmem_smp_rank_list;
-extern void **   shmem_smp_sheap_ptrs;
-#endif
 
 /* TODO probably want to make these 5 things into a struct typedef */
 extern MPI_Win shmem_etext_win;
