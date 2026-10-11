@@ -38,7 +38,7 @@ Requirements: a C11 compiler (checked by `configure`) and MPI-3.
 
 ## Not implemented
 
-Scans (`shmem_*_scan`), re-initialization after finalize (1.6), Fortran bindings, and the vendor extensions the Sandia and Cray
+Scans (`shmem_*_scan`), re-initialization after finalize (1.6), and the vendor extensions the Sandia and Cray
 suites use beyond the specification: `shmemx_team_*` (Cray), `shmemx_am_*` (active messages) and `SHMEMX_*` malloc flags, and
 the C++ overloaded names (`shmem_g(...)` and so on) that Sandia OpenSHMEM provides.  The tests that need these do not compile;
 the list is in `tests/third_party/STATUS.md`.

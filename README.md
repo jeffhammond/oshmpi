@@ -96,5 +96,4 @@ We look forward to patches addressing the following:
 
 * Mac non-heap symmetric data cannot be accessed remotely reliably.
 * PSHMEM interface
-* Fortran interface
 * OpenSHMEM 1.3 changes

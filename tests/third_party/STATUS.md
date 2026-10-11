@@ -14,7 +14,6 @@ branch `osh14-compliance`.  See `README.md` for how to reproduce.
 | tests-sos `test/performance` | 0 | 0 | 16 |
 | tests-uh `feature_tests/C` | 16 | 3 | 0 |
 | tests-uh `performance_tests/micro_benchmarks` | 6 | 0 | 0 |
-| tests-uh `error_tests` | no C programs (Fortran only) | | |
 | tests-cray `sma1` | 27 | 0 | 5 |
 | tests-cray `sma2` (C++) | 7 | 0 | 0 |
 | osa-testcodes | 10 | 6 | 4 |
@@ -23,8 +22,6 @@ branch `osh14-compliance`.  See `README.md` for how to reproduce.
 | test-suites | a meta repository with no tests of its own (git submodules of the above) | | |
 | tests-sgi | empty | | |
 | shmemx-cray-tests | only `usage` documentation for the Cray teams extension, no programs | | |
-
-The Fortran tests are not built (OSHMPI has no Fortran bindings; Fortran is deprecated in 1.4 and removed in 1.5).
 
 ## What the failures are
 
