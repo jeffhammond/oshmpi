@@ -133,6 +133,17 @@ void oshmpi_fetch_op(MPI_Datatype mpi_type, MPI_Op op, void *output, void *remot
 void oshmpi_create_comm(int pe_start, int log_pe_stride, int pe_size,
                         MPI_Comm * comm, MPI_Group * strided_group);
 
+/* Drive MPI progress from a polling loop.  A rank that spins on its own window memory
+ * makes no other MPI call, and Open MPI's UCX one-sided component (and others) only
+ * services incoming RMA/atomics from inside the progress engine, so the PE that is
+ * supposed to wake the poller would never complete.  An MPI_Iprobe on a communicator
+ * that carries no point-to-point traffic enters the progress engine and nothing else. */
+static inline void oshmpi_progress(void)
+{
+    int flag;
+    MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, SHMEM_COMM_WORLD, &flag, MPI_STATUS_IGNORE);
+}
+
 static inline void oshmpi_set_psync(int count, long value, long * pSync)
 {
     for (int i=0; i<count; i++)

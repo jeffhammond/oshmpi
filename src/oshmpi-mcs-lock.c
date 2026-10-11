@@ -101,6 +101,7 @@ void oshmpi_unlock(OSHMPI_VOLATILE long * lockp)
 	  MPI_Fetch_and_op (NULL, &(lock->next), MPI_INT, shmem_world_rank,
 			    NEXT_DISP, MPI_NO_OP, oshmpi_lock_win);
 	  MPI_Win_flush (shmem_world_rank, oshmpi_lock_win);
+	  if (lock->next == -1) oshmpi_progress ();
 	}
     }
 
@@ -123,7 +124,11 @@ int oshmpi_trylock(OSHMPI_VOLATILE long * lockp)
   MPI_Win_flush (TAIL, oshmpi_lock_win);
   lock->prev = prev;
   if (prev != -1)
-    return 0;
+    {
+      /* Callers retry in a loop; keep MPI progressing for the lock holder's RMA to us. */
+      oshmpi_progress ();
+      return 0;
+    }
 
   /* Hold lock */
   oshmpi_lock_base[LOCK_DISP] = 1;

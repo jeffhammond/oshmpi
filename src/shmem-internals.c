@@ -1081,6 +1081,29 @@ void oshmpi_fetch(MPI_Datatype mpi_type, void *output, OSHMPI_CONST void *remote
 
     MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
 
+    /* A fetch of this PE's own memory is an atomic load.  Going through MPI instead makes a
+     * PE that polls its own variable (shmem_wait_until, shmem_test, a spin on atomic_fetch)
+     * take the window's per-target accumulate lock over and over, which starves a remote
+     * PE trying to update that variable: Open MPI's osc/ucx serializes non-native
+     * accumulates, REPLACE included, with a compare-and-swap on that lock.  The window is
+     * in the UNIFIED model, so an acquire load of the aligned word sees remote updates. */
+    if (pe == shmem_world_rank) {
+        int size;
+        MPI_Type_size(mpi_type, &size);
+        if (size == 1 || size == 2 || size == 4 || size == 8) {
+            switch (size) {
+                case 1: { uint8_t  v = __atomic_load_n((const volatile uint8_t *)remote,  __ATOMIC_ACQUIRE); memcpy(output, &v, 1); break; }
+                case 2: { uint16_t v = __atomic_load_n((const volatile uint16_t *)remote, __ATOMIC_ACQUIRE); memcpy(output, &v, 2); break; }
+                case 4: { uint32_t v = __atomic_load_n((const volatile uint32_t *)remote, __ATOMIC_ACQUIRE); memcpy(output, &v, 4); break; }
+                default:{ uint64_t v = __atomic_load_n((const volatile uint64_t *)remote, __ATOMIC_ACQUIRE); memcpy(output, &v, 8); break; }
+            }
+            /* Callers poll with this routine; keep MPI progressing so remote updates to
+             * this PE's memory can complete (see oshmpi_progress). */
+            oshmpi_progress();
+            return;
+        }
+    }
+
 #ifdef ENABLE_SMP_OPTIMIZATIONS
     if (shmem_world_is_smp && win_id==SHMEM_SHEAP_WINDOW &&
             (mpi_type==MPI_LONG || mpi_type==MPI_INT || mpi_type==MPI_LONG_LONG /* || mpi_type==MPIFLOAT || mpi_type==MPI_DOUBLE */) ) {

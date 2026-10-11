@@ -44,42 +44,18 @@
 
 #define SHMEM_WAIT(address, value, temp, mpi_type)                          \
     do {                                                                    \
-        enum shmem_window_id_e id;                                          \
-        shmem_offset_t offset;                                              \
-        oshmpi_window_offset(address, shmem_world_rank, &id, &offset);      \
-                                                                            \
-        MPI_Win win;                                                        \
-        if (id==SHMEM_SHEAP_WINDOW)                                         \
-            win = shmem_sheap_win;                                          \
-        else if (id==SHMEM_ETEXT_WINDOW)                                    \
-            win = shmem_etext_win;                                          \
-                                                                            \
         temp = value;                                                       \
         while (temp == value) {                                             \
-            MPI_Fetch_and_op(NULL, &temp, mpi_type, shmem_world_rank,       \
-                             offset, MPI_NO_OP, win);                       \
-            MPI_Win_flush_local(shmem_world_rank, win);                     \
+            oshmpi_fetch(mpi_type, &temp, (address), shmem_world_rank);     \
         }                                                                   \
     } while(0)
 
 
 #define SHMEM_WAIT_UNTIL(address, cond, value, temp, mpi_type)              \
     do {                                                                    \
-        enum shmem_window_id_e id;                                          \
-        shmem_offset_t offset; /* not used */                               \
-        oshmpi_window_offset(address, shmem_world_rank, &id, &offset);      \
-                                                                            \
-        MPI_Win win;                                                        \
-        if (id==SHMEM_SHEAP_WINDOW)                                         \
-            win = shmem_sheap_win;                                          \
-        else if (id==SHMEM_ETEXT_WINDOW)                                    \
-            win = shmem_etext_win;                                          \
-                                                                            \
         int cmpret=0;                                                       \
         while (!cmpret) {                                                   \
-            MPI_Fetch_and_op(NULL, &temp, mpi_type, shmem_world_rank,       \
-                             offset, MPI_NO_OP, win);                       \
-            MPI_Win_flush_local(shmem_world_rank, win);                     \
+            oshmpi_fetch(mpi_type, &temp, (address), shmem_world_rank);     \
             COMP(cond, temp, value, cmpret);                                \
         }                                                                   \
     } while(0)
