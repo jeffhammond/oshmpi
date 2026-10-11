@@ -149,10 +149,9 @@ int shmem_addr_accessible(OSHMPI_CONST void *addr, int pe)
 void *shmem_align(size_t alignment, size_t size)
 {
     if (size == 0) return NULL;
-    /* The spec makes any alignment that is not a power of two (including zero) undefined.
-     * Reject those with a null pointer instead of rounding up, so the result is well defined. */
-    int valid = alignment != 0 && (alignment & (alignment - 1)) == 0;
-    void *ptr = valid ? mspace_memalign(shmem_heap_mspace, alignment, size) : NULL;
+    /* A zero alignment is undefined in the spec; return a null pointer.  Other values that are
+     * not a power of two are also undefined; they are rounded up to the next power of two. */
+    void *ptr = (alignment == 0) ? NULL : mspace_memalign(shmem_heap_mspace, alignment, size);
     shmem_barrier_all();
     return ptr;
 }
