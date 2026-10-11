@@ -532,6 +532,7 @@ void oshmpi_finalize(void)
 
             oshmpi_direct_finalize();
 
+            oshmpi_team_finalize();
             MPI_Group_free(&SHMEM_GROUP_WORLD);
             MPI_Comm_free(&SHMEM_COMM_WORLD);
 

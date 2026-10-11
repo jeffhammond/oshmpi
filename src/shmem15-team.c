@@ -19,18 +19,21 @@ struct oshmpi_team_s {
     int *    world;         /* world PE number of each team PE */
     int      num_contexts;
     int      predefined;
+    struct oshmpi_team_s * next, * prev;   /* all teams made by splits, freed at finalize if leaked */
 };
 
 struct oshmpi_team_s oshmpi_team_world_obj;
 struct oshmpi_team_s oshmpi_team_shared_obj;
 
 static pthread_once_t team_once = PTHREAD_ONCE_INIT;
-static int            team_keyval = MPI_KEYVAL_INVALID;
+static pthread_mutex_t team_list_mutex = PTHREAD_MUTEX_INITIALIZER;
+static struct oshmpi_team_s * team_list;
 
-/* Run at the start of MPI_Finalize (attribute on MPI_COMM_SELF): free what we created. */
-static int team_finalize_cb(MPI_Comm comm, int keyval, void * attr, void * extra)
+/* Called from oshmpi_finalize, before SHMEM_COMM_WORLD is freed: free what team_init_once made. */
+void oshmpi_team_finalize(void)
 {
-    (void) comm; (void) keyval; (void) attr; (void) extra;
+    /* Teams the program did not destroy. */
+    while (team_list != NULL) shmem_team_destroy(team_list);
     if (oshmpi_team_shared_obj.comm != MPI_COMM_NULL && oshmpi_team_shared_obj.comm != 0) {
         MPI_Comm_free(&oshmpi_team_shared_obj.comm);
         free(oshmpi_team_shared_obj.world);
@@ -38,7 +41,6 @@ static int team_finalize_cb(MPI_Comm comm, int keyval, void * attr, void * extra
     }
     free(oshmpi_team_world_obj.world);
     oshmpi_team_world_obj.world = NULL;
-    return MPI_SUCCESS;
 }
 
 static void team_init_once(void)
@@ -61,9 +63,6 @@ static void team_init_once(void)
     MPI_Allgather(&me, 1, MPI_INT, s->world, 1, MPI_INT, s->comm);
     s->num_contexts = INT_MAX;
     s->predefined = 1;
-
-    MPI_Comm_create_keyval(MPI_COMM_NULL_COPY_FN, team_finalize_cb, &team_keyval, NULL);
-    MPI_Comm_set_attr(MPI_COMM_SELF, team_keyval, NULL);
 }
 
 void oshmpi_team_init(void)
@@ -126,6 +125,12 @@ static shmem_team_t team_make(MPI_Comm comm, int size, int rank, int * world,
     t->world = world;
     t->num_contexts = (config != NULL && (mask & SHMEM_TEAM_NUM_CONTEXTS)) ? config->num_contexts : 0;
     t->predefined = 0;
+    pthread_mutex_lock(&team_list_mutex);
+    t->prev = NULL;
+    t->next = team_list;
+    if (team_list != NULL) team_list->prev = t;
+    team_list = t;
+    pthread_mutex_unlock(&team_list_mutex);
     return t;
 }
 
@@ -220,6 +225,10 @@ void shmem_team_destroy(shmem_team_t team)
 {
     oshmpi_team_init();
     if (team == SHMEM_TEAM_INVALID || team->predefined) return;
+    pthread_mutex_lock(&team_list_mutex);
+    if (team->prev != NULL) team->prev->next = team->next; else team_list = team->next;
+    if (team->next != NULL) team->next->prev = team->prev;
+    pthread_mutex_unlock(&team_list_mutex);
     MPI_Comm_free(&team->comm);
     free(team->world);
     free(team);

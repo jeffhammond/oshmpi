@@ -47,6 +47,7 @@ int   shmem_ctx_get_team(shmem_ctx_t ctx, shmem_team_t * team);
  * routine here).  oshmpi_ctx_pe turns a PE number relative to a context's team into a world
  * PE number; it returns pe unchanged for contexts that were not created from a team. */
 void  oshmpi_team_init(void);
+void  oshmpi_team_finalize(void);
 int   oshmpi_ctx_pe(shmem_ctx_t ctx, int pe);
 
 /* ---- team-based collectives: standard RMA types ------------------------- */
