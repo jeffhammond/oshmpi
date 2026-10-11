@@ -554,20 +554,22 @@ void oshmpi_finalize(void)
 void oshmpi_remote_sync(void)
 {
     __atomic_thread_fence(__ATOMIC_SEQ_CST); /* direct stores to the heap */
-    OSHMPI_MPI_RMA(MPI_Win_flush_all(shmem_sheap_win));
+    /* With direct heap access nothing is ever issued on the heap window, so there is
+     * nothing to flush there. */
+    if (!shmem_sheap_direct) OSHMPI_MPI_RMA(MPI_Win_flush_all(shmem_sheap_win));
     OSHMPI_MPI_RMA(MPI_Win_flush_all(shmem_etext_win));
 }
 
 void oshmpi_remote_sync_pe(int pe)
 {
-    OSHMPI_MPI_RMA(MPI_Win_flush(pe, shmem_sheap_win));
+    if (!shmem_sheap_direct) OSHMPI_MPI_RMA(MPI_Win_flush(pe, shmem_sheap_win));
     OSHMPI_MPI_RMA(MPI_Win_flush(pe, shmem_etext_win));
 }
 
 void oshmpi_local_sync(void)
 {
     __atomic_thread_fence(__ATOMIC_SEQ_CST);
-    OSHMPI_MPI_RMA(MPI_Win_sync(shmem_sheap_win));
+    if (!shmem_sheap_direct) OSHMPI_MPI_RMA(MPI_Win_sync(shmem_sheap_win));
     OSHMPI_MPI_RMA(MPI_Win_sync(shmem_etext_win));
 }
 

@@ -68,6 +68,18 @@ OSHMPI uses MPI RMA for everything, as before.
 Two environment variables control this: `OSHMPI_DIRECT=0` forces MPI RMA, and
 `OSHMPI_VERBOSE=1` makes PE 0 report whether direct access is enabled.
 
+Single-node results from `tools/microbench.c` with 2 PEs (one run each on an aarch64
+machine, so treat them as indicative; `oshcc -O2 tools/microbench.c`):
+
+| | Open MPI 5.0.10, MPI RMA | Open MPI 6.0, `OSHMPI_DIRECT=0` | Open MPI 6.0, direct |
+|---|---|---|---|
+| 8-byte put + quiet | 3.32 us | 0.12 us | 0.08 us |
+| 8-byte get | 3.14 us | 0.033 us | 0.012 us |
+| atomic add rate | 11.8 Mop/s | 14.5 Mop/s | 86.6 Mop/s |
+| fetch-add latency | 3.19 us | 0.073 us | 0.013 us |
+| 1 MiB put bandwidth | 30.2 GB/s | 35.6 GB/s | 35.3 GB/s |
+| barrier | 0.46 us | 0.37 us | 0.35 us |
+
 Future Work
 ===========
 
