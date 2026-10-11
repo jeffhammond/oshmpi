@@ -227,20 +227,13 @@ void shmem_team_destroy(shmem_team_t team)
 
 /* ---- team contexts -------------------------------------------------------- */
 
-/* The first member matches the layout of the context object that shmem_ctx_create makes, so
- * shmem_ctx_destroy can free one of these.  The magic number tells them apart. */
-struct team_ctx {
-    long         options;
-    uint64_t     magic;
-    shmem_team_t team;
-};
-#define TEAM_CTX_MAGIC 0x4f5348504d495443ULL
-
-static const struct team_ctx * as_team_ctx(shmem_ctx_t ctx)
+/* A team context is a struct oshmpi_ctx_s (see shmem-internals.h) with its team set, so
+ * shmem_ctx_destroy frees it like any other context. */
+static const struct oshmpi_ctx_s * as_team_ctx(shmem_ctx_t ctx)
 {
     if (ctx == SHMEM_CTX_INVALID || ctx == SHMEM_CTX_DEFAULT) return NULL;
-    const struct team_ctx * c = (const struct team_ctx *) ctx;
-    return c->magic == TEAM_CTX_MAGIC ? c : NULL;
+    const struct oshmpi_ctx_s * c = (const struct oshmpi_ctx_s *) ctx;
+    return c->team != NULL ? c : NULL;
 }
 
 int shmem_team_create_ctx(shmem_team_t team, long options, shmem_ctx_t * ctx)
@@ -248,10 +241,9 @@ int shmem_team_create_ctx(shmem_team_t team, long options, shmem_ctx_t * ctx)
     oshmpi_team_init();
     *ctx = SHMEM_CTX_INVALID;
     if (team == SHMEM_TEAM_INVALID) return 1;
-    struct team_ctx * c = malloc(sizeof(*c));
+    struct oshmpi_ctx_s * c = malloc(sizeof(*c));
     if (c == NULL) return 1;
     c->options = options;
-    c->magic = TEAM_CTX_MAGIC;
     c->team = team;
     *ctx = (shmem_ctx_t) c;
     return 0;
@@ -261,14 +253,14 @@ int shmem_ctx_get_team(shmem_ctx_t ctx, shmem_team_t * team)
 {
     oshmpi_team_init();
     if (ctx == SHMEM_CTX_INVALID) { *team = SHMEM_TEAM_INVALID; return 1; }
-    const struct team_ctx * c = as_team_ctx(ctx);
+    const struct oshmpi_ctx_s * c = as_team_ctx(ctx);
     *team = c ? c->team : SHMEM_TEAM_WORLD;
     return 0;
 }
 
 int oshmpi_ctx_pe(shmem_ctx_t ctx, int pe)
 {
-    const struct team_ctx * c = as_team_ctx(ctx);
+    const struct oshmpi_ctx_s * c = as_team_ctx(ctx);
     if (c == NULL || pe < 0 || pe >= c->team->size) return pe;
     return c->team->world[pe];
 }

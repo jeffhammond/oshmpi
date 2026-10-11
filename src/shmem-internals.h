@@ -28,6 +28,15 @@
 
 typedef MPI_Aint shmem_offset_t;
 
+/* A communication context.  'team' is the team the context was created for with
+ * shmem_team_create_ctx; it is NULL for contexts of the world team, including those made by
+ * shmem_ctx_create. */
+struct oshmpi_team_s;
+struct oshmpi_ctx_s {
+    long options;
+    struct oshmpi_team_s * team;
+};
+
 /*****************************************************************/
 /* TODO convert all the global status into a struct ala ARMCI-MPI */
 /* requires TLS if MPI is thread-based */

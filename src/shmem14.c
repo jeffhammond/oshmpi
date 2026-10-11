@@ -45,10 +45,6 @@
 
 /* ---- contexts ---------------------------------------------------------- */
 
-struct oshmpi_ctx_s {
-    long options;
-};
-
 int shmem_ctx_create(long options, shmem_ctx_t *ctx)
 {
     struct oshmpi_ctx_s * c = malloc(sizeof(struct oshmpi_ctx_s));
@@ -57,6 +53,7 @@ int shmem_ctx_create(long options, shmem_ctx_t *ctx)
         return -1;
     }
     c->options = options;
+    c->team = NULL;
     *ctx = c;
     return 0;
 }
@@ -76,23 +73,23 @@ void shmem_ctx_quiet(shmem_ctx_t ctx) { (void)ctx; shmem_quiet(); }
 
 #define OSHMPI_DEFINE_RMA_CTX(N, T)                                                            \
 void shmem_ctx_##N##_p(shmem_ctx_t ctx, T *dest, T value, int pe)                              \
-{ (void)ctx; oshmpi_put(OSHMPI_MT_##N, dest, &value, 1, pe); }                                 \
+{ pe = oshmpi_ctx_pe(ctx, pe); oshmpi_put(OSHMPI_MT_##N, dest, &value, 1, pe); }                                 \
 T shmem_ctx_##N##_g(shmem_ctx_t ctx, const T *src, int pe)                                     \
-{ T v; (void)ctx; oshmpi_get(OSHMPI_MT_##N, &v, src, 1, pe); return v; }                       \
+{ T v; pe = oshmpi_ctx_pe(ctx, pe); oshmpi_get(OSHMPI_MT_##N, &v, src, 1, pe); return v; }                       \
 void shmem_ctx_##N##_put(shmem_ctx_t ctx, T *dest, const T *src, size_t nelems, int pe)        \
-{ (void)ctx; oshmpi_put(OSHMPI_MT_##N, dest, src, nelems, pe); }                               \
+{ pe = oshmpi_ctx_pe(ctx, pe); oshmpi_put(OSHMPI_MT_##N, dest, src, nelems, pe); }                               \
 void shmem_ctx_##N##_get(shmem_ctx_t ctx, T *dest, const T *src, size_t nelems, int pe)        \
-{ (void)ctx; oshmpi_get(OSHMPI_MT_##N, dest, src, nelems, pe); }                               \
+{ pe = oshmpi_ctx_pe(ctx, pe); oshmpi_get(OSHMPI_MT_##N, dest, src, nelems, pe); }                               \
 void shmem_ctx_##N##_put_nbi(shmem_ctx_t ctx, T *dest, const T *src, size_t nelems, int pe)    \
-{ (void)ctx; oshmpi_put_nbi(OSHMPI_MT_##N, dest, src, nelems, pe); }                           \
+{ pe = oshmpi_ctx_pe(ctx, pe); oshmpi_put_nbi(OSHMPI_MT_##N, dest, src, nelems, pe); }                           \
 void shmem_ctx_##N##_get_nbi(shmem_ctx_t ctx, T *dest, const T *src, size_t nelems, int pe)    \
-{ (void)ctx; oshmpi_get_nbi(OSHMPI_MT_##N, dest, src, nelems, pe); }                           \
+{ pe = oshmpi_ctx_pe(ctx, pe); oshmpi_get_nbi(OSHMPI_MT_##N, dest, src, nelems, pe); }                           \
 void shmem_ctx_##N##_iput(shmem_ctx_t ctx, T *dest, const T *src, ptrdiff_t dst,               \
                           ptrdiff_t sst, size_t nelems, int pe)                                \
-{ (void)ctx; oshmpi_put_strided(OSHMPI_MT_##N, dest, src, dst, sst, nelems, pe); }             \
+{ pe = oshmpi_ctx_pe(ctx, pe); oshmpi_put_strided(OSHMPI_MT_##N, dest, src, dst, sst, nelems, pe); }             \
 void shmem_ctx_##N##_iget(shmem_ctx_t ctx, T *dest, const T *src, ptrdiff_t dst,               \
                           ptrdiff_t sst, size_t nelems, int pe)                                \
-{ (void)ctx; oshmpi_get_strided(OSHMPI_MT_##N, dest, src, dst, sst, nelems, pe); }
+{ pe = oshmpi_ctx_pe(ctx, pe); oshmpi_get_strided(OSHMPI_MT_##N, dest, src, dst, sst, nelems, pe); }
 
 #define OSHMPI_DEFINE_RMA_DEFAULT(N, T)                                                        \
 void shmem_##N##_p(T *dest, T value, int pe)                                                   \
@@ -129,19 +126,19 @@ void shmem_char_iget(char *dest, const char *src, ptrdiff_t dst, ptrdiff_t sst, 
 
 #define OSHMPI_DEFINE_SIZED_CTX(S)                                                             \
 void shmem_ctx_put##S(shmem_ctx_t ctx, void *dest, const void *src, size_t nelems, int pe)     \
-{ (void)ctx; oshmpi_put(OSHMPI_MT_SIZED_##S, dest, src, nelems, pe); }                         \
+{ pe = oshmpi_ctx_pe(ctx, pe); oshmpi_put(OSHMPI_MT_SIZED_##S, dest, src, nelems, pe); }                         \
 void shmem_ctx_get##S(shmem_ctx_t ctx, void *dest, const void *src, size_t nelems, int pe)     \
-{ (void)ctx; oshmpi_get(OSHMPI_MT_SIZED_##S, dest, src, nelems, pe); }                         \
+{ pe = oshmpi_ctx_pe(ctx, pe); oshmpi_get(OSHMPI_MT_SIZED_##S, dest, src, nelems, pe); }                         \
 void shmem_ctx_put##S##_nbi(shmem_ctx_t ctx, void *dest, const void *src, size_t nelems, int pe) \
-{ (void)ctx; oshmpi_put_nbi(OSHMPI_MT_SIZED_##S, dest, src, nelems, pe); }                     \
+{ pe = oshmpi_ctx_pe(ctx, pe); oshmpi_put_nbi(OSHMPI_MT_SIZED_##S, dest, src, nelems, pe); }                     \
 void shmem_ctx_get##S##_nbi(shmem_ctx_t ctx, void *dest, const void *src, size_t nelems, int pe) \
-{ (void)ctx; oshmpi_get_nbi(OSHMPI_MT_SIZED_##S, dest, src, nelems, pe); }                     \
+{ pe = oshmpi_ctx_pe(ctx, pe); oshmpi_get_nbi(OSHMPI_MT_SIZED_##S, dest, src, nelems, pe); }                     \
 void shmem_ctx_iput##S(shmem_ctx_t ctx, void *dest, const void *src, ptrdiff_t dst,            \
                        ptrdiff_t sst, size_t nelems, int pe)                                   \
-{ (void)ctx; oshmpi_put_strided(OSHMPI_MT_SIZED_##S, dest, src, dst, sst, nelems, pe); }       \
+{ pe = oshmpi_ctx_pe(ctx, pe); oshmpi_put_strided(OSHMPI_MT_SIZED_##S, dest, src, dst, sst, nelems, pe); }       \
 void shmem_ctx_iget##S(shmem_ctx_t ctx, void *dest, const void *src, ptrdiff_t dst,            \
                        ptrdiff_t sst, size_t nelems, int pe)                                   \
-{ (void)ctx; oshmpi_get_strided(OSHMPI_MT_SIZED_##S, dest, src, dst, sst, nelems, pe); }
+{ pe = oshmpi_ctx_pe(ctx, pe); oshmpi_get_strided(OSHMPI_MT_SIZED_##S, dest, src, dst, sst, nelems, pe); }
 
 OSHMPI_DEFINE_SIZED_CTX(8)
 OSHMPI_DEFINE_SIZED_CTX(16)
@@ -150,13 +147,13 @@ OSHMPI_DEFINE_SIZED_CTX(64)
 OSHMPI_DEFINE_SIZED_CTX(128)
 
 void shmem_ctx_putmem(shmem_ctx_t ctx, void *dest, const void *src, size_t nelems, int pe)
-{ (void)ctx; oshmpi_put(MPI_BYTE, dest, src, nelems, pe); }
+{ pe = oshmpi_ctx_pe(ctx, pe); oshmpi_put(MPI_BYTE, dest, src, nelems, pe); }
 void shmem_ctx_getmem(shmem_ctx_t ctx, void *dest, const void *src, size_t nelems, int pe)
-{ (void)ctx; oshmpi_get(MPI_BYTE, dest, src, nelems, pe); }
+{ pe = oshmpi_ctx_pe(ctx, pe); oshmpi_get(MPI_BYTE, dest, src, nelems, pe); }
 void shmem_ctx_putmem_nbi(shmem_ctx_t ctx, void *dest, const void *src, size_t nelems, int pe)
-{ (void)ctx; oshmpi_put_nbi(MPI_BYTE, dest, src, nelems, pe); }
+{ pe = oshmpi_ctx_pe(ctx, pe); oshmpi_put_nbi(MPI_BYTE, dest, src, nelems, pe); }
 void shmem_ctx_getmem_nbi(shmem_ctx_t ctx, void *dest, const void *src, size_t nelems, int pe)
-{ (void)ctx; oshmpi_get_nbi(MPI_BYTE, dest, src, nelems, pe); }
+{ pe = oshmpi_ctx_pe(ctx, pe); oshmpi_get_nbi(MPI_BYTE, dest, src, nelems, pe); }
 
 void shmem_iput8(void *dest, const void *src, ptrdiff_t dst, ptrdiff_t sst, size_t nelems, int pe)
 { oshmpi_put_strided(OSHMPI_MT_SIZED_8, dest, src, dst, sst, nelems, pe); }
@@ -171,11 +168,11 @@ void shmem_iget16(void *dest, const void *src, ptrdiff_t dst, ptrdiff_t sst, siz
 
 #define OSHMPI_DEFINE_AMO_FETCH_SET_SWAP(N, T)                                                 \
 T shmem_ctx_##N##_atomic_fetch(shmem_ctx_t ctx, const T *dest, int pe)                         \
-{ T r; (void)ctx; oshmpi_fetch(OSHMPI_MT_##N, &r, dest, pe); return r; }                       \
+{ T r; pe = oshmpi_ctx_pe(ctx, pe); oshmpi_fetch(OSHMPI_MT_##N, &r, dest, pe); return r; }                       \
 void shmem_ctx_##N##_atomic_set(shmem_ctx_t ctx, T *dest, T value, int pe)                     \
-{ (void)ctx; oshmpi_set(OSHMPI_MT_##N, dest, &value, pe); }                                    \
+{ pe = oshmpi_ctx_pe(ctx, pe); oshmpi_set(OSHMPI_MT_##N, dest, &value, pe); }                                    \
 T shmem_ctx_##N##_atomic_swap(shmem_ctx_t ctx, T *dest, T value, int pe)                       \
-{ T r; (void)ctx; oshmpi_swap(OSHMPI_MT_##N, &r, dest, &value, pe); return r; }                \
+{ T r; pe = oshmpi_ctx_pe(ctx, pe); oshmpi_swap(OSHMPI_MT_##N, &r, dest, &value, pe); return r; }                \
 T shmem_##N##_atomic_fetch(const T *dest, int pe)                                              \
 { return shmem_ctx_##N##_atomic_fetch(SHMEM_CTX_DEFAULT, dest, pe); }                          \
 void shmem_##N##_atomic_set(T *dest, T value, int pe)                                          \
@@ -185,15 +182,15 @@ T shmem_##N##_atomic_swap(T *dest, T value, int pe)                             
 
 #define OSHMPI_DEFINE_AMO_INT(N, T)                                                            \
 T shmem_ctx_##N##_atomic_compare_swap(shmem_ctx_t ctx, T *dest, T cond, T value, int pe)       \
-{ T r; (void)ctx; oshmpi_cswap(OSHMPI_MT_##N, &r, dest, &value, &cond, pe); return r; }        \
+{ T r; pe = oshmpi_ctx_pe(ctx, pe); oshmpi_cswap(OSHMPI_MT_##N, &r, dest, &value, &cond, pe); return r; }        \
 T shmem_ctx_##N##_atomic_fetch_inc(shmem_ctx_t ctx, T *dest, int pe)                           \
-{ T r, one = 1; (void)ctx; oshmpi_fadd(OSHMPI_MT_##N, &r, dest, &one, pe); return r; }         \
+{ T r, one = 1; pe = oshmpi_ctx_pe(ctx, pe); oshmpi_fadd(OSHMPI_MT_##N, &r, dest, &one, pe); return r; }         \
 void shmem_ctx_##N##_atomic_inc(shmem_ctx_t ctx, T *dest, int pe)                              \
-{ T one = 1; (void)ctx; oshmpi_add(OSHMPI_MT_##N, dest, &one, pe); }                           \
+{ T one = 1; pe = oshmpi_ctx_pe(ctx, pe); oshmpi_add(OSHMPI_MT_##N, dest, &one, pe); }                           \
 T shmem_ctx_##N##_atomic_fetch_add(shmem_ctx_t ctx, T *dest, T value, int pe)                  \
-{ T r; (void)ctx; oshmpi_fadd(OSHMPI_MT_##N, &r, dest, &value, pe); return r; }                \
+{ T r; pe = oshmpi_ctx_pe(ctx, pe); oshmpi_fadd(OSHMPI_MT_##N, &r, dest, &value, pe); return r; }                \
 void shmem_ctx_##N##_atomic_add(shmem_ctx_t ctx, T *dest, T value, int pe)                     \
-{ (void)ctx; oshmpi_add(OSHMPI_MT_##N, dest, &value, pe); }                                    \
+{ pe = oshmpi_ctx_pe(ctx, pe); oshmpi_add(OSHMPI_MT_##N, dest, &value, pe); }                                    \
 T shmem_##N##_atomic_compare_swap(T *dest, T cond, T value, int pe)                            \
 { return shmem_ctx_##N##_atomic_compare_swap(SHMEM_CTX_DEFAULT, dest, cond, value, pe); }      \
 T shmem_##N##_atomic_fetch_inc(T *dest, int pe)                                                \
@@ -207,17 +204,17 @@ void shmem_##N##_atomic_add(T *dest, T value, int pe)                           
 
 #define OSHMPI_DEFINE_AMO_BITWISE(N, T)                                                        \
 T shmem_ctx_##N##_atomic_fetch_and(shmem_ctx_t ctx, T *dest, T value, int pe)                  \
-{ T r; (void)ctx; oshmpi_fetch_op(OSHMPI_MT_##N, MPI_BAND, &r, dest, &value, pe); return r; }  \
+{ T r; pe = oshmpi_ctx_pe(ctx, pe); oshmpi_fetch_op(OSHMPI_MT_##N, MPI_BAND, &r, dest, &value, pe); return r; }  \
 void shmem_ctx_##N##_atomic_and(shmem_ctx_t ctx, T *dest, T value, int pe)                     \
-{ (void)ctx; oshmpi_op(OSHMPI_MT_##N, MPI_BAND, dest, &value, pe); }                           \
+{ pe = oshmpi_ctx_pe(ctx, pe); oshmpi_op(OSHMPI_MT_##N, MPI_BAND, dest, &value, pe); }                           \
 T shmem_ctx_##N##_atomic_fetch_or(shmem_ctx_t ctx, T *dest, T value, int pe)                   \
-{ T r; (void)ctx; oshmpi_fetch_op(OSHMPI_MT_##N, MPI_BOR, &r, dest, &value, pe); return r; }   \
+{ T r; pe = oshmpi_ctx_pe(ctx, pe); oshmpi_fetch_op(OSHMPI_MT_##N, MPI_BOR, &r, dest, &value, pe); return r; }   \
 void shmem_ctx_##N##_atomic_or(shmem_ctx_t ctx, T *dest, T value, int pe)                      \
-{ (void)ctx; oshmpi_op(OSHMPI_MT_##N, MPI_BOR, dest, &value, pe); }                            \
+{ pe = oshmpi_ctx_pe(ctx, pe); oshmpi_op(OSHMPI_MT_##N, MPI_BOR, dest, &value, pe); }                            \
 T shmem_ctx_##N##_atomic_fetch_xor(shmem_ctx_t ctx, T *dest, T value, int pe)                  \
-{ T r; (void)ctx; oshmpi_fetch_op(OSHMPI_MT_##N, MPI_BXOR, &r, dest, &value, pe); return r; }  \
+{ T r; pe = oshmpi_ctx_pe(ctx, pe); oshmpi_fetch_op(OSHMPI_MT_##N, MPI_BXOR, &r, dest, &value, pe); return r; }  \
 void shmem_ctx_##N##_atomic_xor(shmem_ctx_t ctx, T *dest, T value, int pe)                     \
-{ (void)ctx; oshmpi_op(OSHMPI_MT_##N, MPI_BXOR, dest, &value, pe); }                           \
+{ pe = oshmpi_ctx_pe(ctx, pe); oshmpi_op(OSHMPI_MT_##N, MPI_BXOR, dest, &value, pe); }                           \
 T shmem_##N##_atomic_fetch_and(T *dest, T value, int pe)                                       \
 { return shmem_ctx_##N##_atomic_fetch_and(SHMEM_CTX_DEFAULT, dest, value, pe); }               \
 void shmem_##N##_atomic_and(T *dest, T value, int pe)                                          \

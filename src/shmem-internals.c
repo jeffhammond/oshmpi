@@ -484,6 +484,7 @@ void oshmpi_initialize(int threading)
         MPI_Barrier(SHMEM_COMM_WORLD);
 
         shmem_is_initialized = 1;
+        oshmpi_team_init(); /* collective: creates SHMEM_TEAM_SHARED while every PE is here */
     }
     return;
 }
