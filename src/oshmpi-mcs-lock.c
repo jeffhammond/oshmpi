@@ -1,138 +1,116 @@
-/* Written by Sayan Ghosh. */
+/* Written by Sayan Ghosh; per-variable MCS queue lock rewrite. */
 
+#include <limits.h>
 #include "shmem-internals.h"
 #include "oshmpi-mcs-lock.h"
 
-#define NEXT_DISP 1
-#define PREV_DISP 0
-#define TAIL_DISP 2 //Only has meaning in PE 0
-#define LOCK_DISP 3
-#define TAIL 	  0
+/* The OpenSHMEM lock is an MCS queue lock whose state lives in the lock variable itself, so
+ * every lock variable is an independent lock and a PE may hold several at once.
+ *
+ * The variable is a symmetric long that the user initializes to zero on all PEs.  It is used
+ * as two ints:
+ *
+ *   word[LOCK_LAST]   on PE 0 only: the queue tail, as (PE + 1); 0 means the lock is free.
+ *   word[LOCK_STATE]  on every PE: bit 31 (LOCK_SIGNAL) is set by the PE ahead of us to pass
+ *                     the lock on; the low 31 bits are the PE directly behind us, as (PE + 1).
+ *
+ * Both parts of LOCK_STATE are only ever OR-ed in by remote PEs, so the successor's link and
+ * the predecessor's hand-off can arrive in any order.  A PE waits by polling its own
+ * LOCK_STATE word, so there is no point-to-point traffic and no global state.  Waiters are
+ * served in the order they swapped into the tail, which is the first-come, first-served
+ * order the specification requires.  The calls are not reentrant, as in the specification:
+ * a PE must not set a lock it already holds. */
 
-MPI_Win oshmpi_lock_win = MPI_WIN_NULL;
-int * oshmpi_lock_base = NULL;
+_Static_assert(sizeof(long) >= 2 * sizeof(int), "the lock variable must hold two ints");
 
-void oshmpi_allock(MPI_Comm comm)
+#define LOCK_LAST   0
+#define LOCK_STATE  1
+#define LOCK_SIGNAL INT_MIN
+#define LOCK_NEXT_MASK INT_MAX
+
+#define LOCK_WORD(lockp, idx) ((void *) &((volatile int *) (lockp))[idx])
+
+/* The tail lives on PE 0. */
+#define TAIL_PE 0
+
+static int oshmpi_lock_state(OSHMPI_VOLATILE long * lockp)
 {
-  MPI_Info lock_info=MPI_INFO_NULL;
-  MPI_Info_create(&lock_info);
-
-  /* We define the sheap size to be symmetric and assume it for the global static data. */
-  MPI_Info_set(lock_info, "same_size", "true");
-
-  MPI_Win_allocate (4 * sizeof (int), sizeof (int), lock_info,
-		    comm, &oshmpi_lock_base, &oshmpi_lock_win);
-  oshmpi_lock_base[NEXT_DISP] = -1;
-  oshmpi_lock_base[PREV_DISP] = -1;
-  oshmpi_lock_base[TAIL_DISP] = -1;
-  oshmpi_lock_base[LOCK_DISP] = -1;
-  MPI_Win_lock_all (TAIL, oshmpi_lock_win);
-
-  MPI_Info_free(&lock_info);
-
-  return;
+  int state;
+  oshmpi_fetch (MPI_INT, &state, LOCK_WORD (lockp, LOCK_STATE), shmem_world_rank);
+  return state;
 }
 
-void oshmpi_deallock(void)
+static void oshmpi_lock_reset_state(OSHMPI_VOLATILE long * lockp)
 {
-  MPI_Win_unlock_all (oshmpi_lock_win);
-  MPI_Win_free (&oshmpi_lock_win);
-  return;
+  /* Nothing can be writing our state now: a PE only links behind us or signals us while we
+   * are queued, and we are not. */
+  int zero = 0;
+  oshmpi_set (MPI_INT, LOCK_WORD (lockp, LOCK_STATE), &zero, shmem_world_rank);
 }
-
-#define LOCK_TAG 999
-
-/* The lock is an MCS queue lock: TAIL_DISP (on rank TAIL) holds the last rank in the queue,
- * NEXT_DISP (on each rank) holds the rank that queued directly behind it, and the
- * lock is handed to that rank with a message. */
 
 void oshmpi_lock(OSHMPI_VOLATILE long * lockp)
 {
-  oshmpi_lock_t *lock = (oshmpi_lock_t *) lockp;
-  int token;
-  /* Replace the tail with myself, learning who was last */
-  OSHMPI_MPI_RMA(MPI_Fetch_and_op (&shmem_world_rank, &(lock->prev), MPI_INT, TAIL,
-		    TAIL_DISP, MPI_REPLACE, oshmpi_lock_win));
-  OSHMPI_MPI_RMA(MPI_Win_flush (TAIL, oshmpi_lock_win));
+  int me1 = shmem_world_rank + 1;
+  int prev;
 
-  /* Previous proc holding lock will eventually notify */
-  if (lock->prev != -1)
+  oshmpi_lock_reset_state (lockp);
+
+  /* Take the tail, learning who was last in the queue. */
+  oshmpi_swap (MPI_INT, &prev, LOCK_WORD (lockp, LOCK_LAST), &me1, TAIL_PE);
+
+  if (prev != 0)
     {
-      /* Tell the previous proc that I am behind it, then wait for the hand-off */
-      OSHMPI_MPI_RMA(MPI_Accumulate (&shmem_world_rank, 1, MPI_INT, lock->prev, NEXT_DISP,
-		      1, MPI_INT, MPI_REPLACE, oshmpi_lock_win));
-      OSHMPI_MPI_RMA(MPI_Win_flush (lock->prev, oshmpi_lock_win));
-      MPI_Recv (&token, 1, MPI_INT, lock->prev, LOCK_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    }
-  /* Hold lock */
-  oshmpi_lock_base[LOCK_DISP] = 1;
-  OSHMPI_MPI_RMA(MPI_Win_sync (oshmpi_lock_win));
+      /* Tell the PE ahead of us that we are behind it, then wait to be handed the lock. */
+      int old;
+      oshmpi_fetch_op (MPI_INT, MPI_BOR, &old, LOCK_WORD (lockp, LOCK_STATE), &me1, prev - 1);
 
-  return;
+      while ((oshmpi_lock_state (lockp) & LOCK_SIGNAL) == 0)
+        ;
+    }
 }
 
 void oshmpi_unlock(OSHMPI_VOLATILE long * lockp)
 {
-  oshmpi_lock_t *lock = (oshmpi_lock_t *) lockp;
-  int nil = -1;
+  int me1 = shmem_world_rank + 1;
+  int state = oshmpi_lock_state (lockp);
 
-  /* Release lock */
-  oshmpi_lock_base[LOCK_DISP] = -1;
-  OSHMPI_MPI_RMA(MPI_Win_sync (oshmpi_lock_win));
+  /* The specification has clear_lock quiet the default context first, so that everything
+   * done in the critical region is complete before the next PE sees the lock. */
+  oshmpi_remote_sync ();
 
-  /* Determine my next process */
-  OSHMPI_MPI_RMA(MPI_Fetch_and_op (NULL, &(lock->next), MPI_INT, shmem_world_rank,
-		    NEXT_DISP, MPI_NO_OP, oshmpi_lock_win));
-  OSHMPI_MPI_RMA(MPI_Win_flush (shmem_world_rank, oshmpi_lock_win));
-
-  if (lock->next == -1)
+  if ((state & LOCK_NEXT_MASK) == 0)
     {
-      /* No known successor: if I am still the tail, the queue is now empty. */
-      int old_tail = -1;
-      OSHMPI_MPI_RMA(MPI_Compare_and_swap (&nil, &shmem_world_rank, &old_tail, MPI_INT,
-			    TAIL, TAIL_DISP, oshmpi_lock_win));
-      OSHMPI_MPI_RMA(MPI_Win_flush (TAIL, oshmpi_lock_win));
-      if (old_tail == shmem_world_rank)
-	return;
+      /* No known successor: if we are still the tail, the queue becomes empty. */
+      int zero = 0, old;
+      oshmpi_cswap (MPI_INT, &old, LOCK_WORD (lockp, LOCK_LAST), &zero, &me1, TAIL_PE);
+      if (old == me1)
+        return;
 
-      /* Someone queued behind me but has not yet told me; wait for it. */
-      while (lock->next == -1)
-	{
-	  OSHMPI_MPI_RMA(MPI_Fetch_and_op (NULL, &(lock->next), MPI_INT, shmem_world_rank,
-			    NEXT_DISP, MPI_NO_OP, oshmpi_lock_win));
-	  OSHMPI_MPI_RMA(MPI_Win_flush (shmem_world_rank, oshmpi_lock_win));
-	  if (lock->next == -1) oshmpi_progress ();
-	}
+      /* Someone swapped in behind us but has not linked itself yet; wait for the link. */
+      while (((state = oshmpi_lock_state (lockp)) & LOCK_NEXT_MASK) == 0)
+        ;
     }
 
-  /* Reset my next slot for the next time I queue, then hand over the lock */
-  OSHMPI_MPI_RMA(MPI_Accumulate (&nil, 1, MPI_INT, shmem_world_rank, NEXT_DISP,
-		  1, MPI_INT, MPI_REPLACE, oshmpi_lock_win));
-  OSHMPI_MPI_RMA(MPI_Win_flush (shmem_world_rank, oshmpi_lock_win));
-  MPI_Send (&shmem_world_rank, 1, MPI_INT, lock->next, LOCK_TAG, MPI_COMM_WORLD);
-
-  return;
+  /* Hand the lock to the PE behind us. */
+  int signal = LOCK_SIGNAL, old;
+  oshmpi_fetch_op (MPI_INT, MPI_BOR, &old, LOCK_WORD (lockp, LOCK_STATE), &signal,
+                   (state & LOCK_NEXT_MASK) - 1);
 }
 
 int oshmpi_trylock(OSHMPI_VOLATILE long * lockp)
 {
-  int nil = -1, prev = -1;
-  oshmpi_lock_t *lock = (oshmpi_lock_t *) lockp;
-  /* The lock is free only if the queue is empty: if the tail is -1, take it. */
-  OSHMPI_MPI_RMA(MPI_Compare_and_swap (&shmem_world_rank, &nil, &prev, MPI_INT,
-			TAIL, TAIL_DISP, oshmpi_lock_win));
-  OSHMPI_MPI_RMA(MPI_Win_flush (TAIL, oshmpi_lock_win));
-  lock->prev = prev;
-  if (prev != -1)
+  int me1 = shmem_world_rank + 1;
+  int zero = 0, old;
+
+  oshmpi_lock_reset_state (lockp);
+
+  /* The lock is free only if the queue is empty: if the tail is 0, take it. */
+  oshmpi_cswap (MPI_INT, &old, LOCK_WORD (lockp, LOCK_LAST), &me1, &zero, TAIL_PE);
+  if (old != 0)
     {
-      /* Callers retry in a loop; keep MPI progressing for the lock holder's RMA to us. */
+      /* Callers retry in a loop; keep MPI progressing for the holder's RMA to us. */
       oshmpi_progress ();
       return 0;
     }
-
-  /* Hold lock */
-  oshmpi_lock_base[LOCK_DISP] = 1;
-  OSHMPI_MPI_RMA(MPI_Win_sync (oshmpi_lock_win));
-
   return 1;
 }
