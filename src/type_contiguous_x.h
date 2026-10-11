@@ -25,7 +25,7 @@
  *   newtype           new datatype (handle)
  *
  */
-static int MPIX_Type_contiguous_x(size_t count, MPI_Datatype oldtype, MPI_Datatype * newtype)
+static inline int MPIX_Type_contiguous_x(size_t count, MPI_Datatype oldtype, MPI_Datatype * newtype)
 {
     int c = count/(size_t)INT_MAX;
     int r = count%(size_t)INT_MAX;

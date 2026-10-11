@@ -114,17 +114,6 @@ extern MPI_Win shmem_mpmd_appnum_win;
 
 /*****************************************************************/
 
-/* Reduce overhead of MPI_Type_size in MPI-bypass Put/Get path.
- * There are other ways to solve this problem, e.g. by adding
- * an argument for the type-size to all the functions that need it. */
-
-static inline int OSHMPI_Type_size(MPI_Datatype mpi_type)
-{
-    int type_size;
-    MPI_Type_size(mpi_type, &type_size);
-    return type_size;
-}
-
 /*****************************************************************/
 
 /* Detect, at run time, whether every PE's symmetric heap is directly addressable here (see
@@ -1227,25 +1216,6 @@ void oshmpi_fadd(MPI_Datatype mpi_type, void *output, void *remote, const void *
         OSHMPI_MPI_RMA(MPI_Win_flush(pe, win));
     }
     return;
-}
-
-static inline int oshmpi_translate_root(MPI_Group strided_group, int pe_root)
-{
-#if SHMEM_DEBUG > 4
-    printf("[%d] oshmpi_translate_root(..,%d) \n", shmem_world_rank, pe_root);
-#endif
-    /* Broadcasts require us to translate the root from the world reference frame
-     * to the strided subcommunicator frame. */
-    {
-        /* TODO
-         * It should be possible to sidestep the generic translation for the 
-         * special cases allowed by SHMEM. */
-        int world_ranks[1] = { pe_root };
-        int strided_ranks[1];
-        MPI_Group_translate_ranks(SHMEM_GROUP_WORLD, 1 /* count */, world_ranks, 
-                                  strided_group, strided_ranks);
-        return strided_ranks[0];
-    }
 }
 
 /* TODO 
