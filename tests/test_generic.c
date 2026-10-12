@@ -54,7 +54,7 @@ int main(void)
     shmem_barrier_all();
     shmem_atomic_add(&su64[1], 3, 0);
     uint64_t prev = shmem_atomic_fetch_add(&su64[1], 4, 0);
-    CHECK(prev <= (uint64_t)np * 7, "generic fetch_add");
+    CHECK(prev <= (uint64_t)np * 8, "generic fetch_add");   /* the other PEs' later incs may already be in */
     shmem_atomic_inc(ctx, &su64[1], 0);
     shmem_ctx_quiet(ctx);
     shmem_barrier_all();
