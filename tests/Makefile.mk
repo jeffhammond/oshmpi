@@ -41,6 +41,8 @@ check_PROGRAMS += tests/barrier_performance \
                   tests/test_symsize_legacy \
                   tests/test_legacy \
                   tests/test_init_nested \
+                  tests/test_shmem16 \
+                  tests/test_reinit \
                   tests/test_init_thread_single \
                   tests/test_init_thread_funneled \
                   tests/test_init_thread_serialized \
@@ -86,6 +88,8 @@ TESTS += tests/barrier_performance \
          tests/test_symsize_legacy \
          tests/test_legacy \
          tests/test_init_nested \
+         tests/test_shmem16 \
+         tests/test_reinit \
          tests/test_init_thread_single \
          tests/test_init_thread_funneled \
          tests/test_init_thread_serialized \
@@ -147,6 +151,8 @@ tests_test_symsize_full_LDADD = libshmem.la
 
 tests_test_legacy_LDADD = libshmem.la -lm
 tests_test_init_nested_LDADD = libshmem.la
+tests_test_shmem16_LDADD = libshmem.la
+tests_test_reinit_LDADD = libshmem.la
 tests_test_init_thread_single_SOURCES = tests/test_init_thread.c
 tests_test_init_thread_single_CPPFLAGS = -DREQ=0
 tests_test_init_thread_single_LDFLAGS = -pthread

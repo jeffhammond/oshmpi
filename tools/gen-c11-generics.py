@@ -37,6 +37,8 @@ OPS = [
  ('get_nbi','get_nbi',['dest','source','nelems','pe'],RMA,['']),
  ('iput','iput',['dest','source','dst','sst','nelems','pe'],RMA,['']),
  ('iget','iget',['dest','source','dst','sst','nelems','pe'],RMA,['']),
+ ('ibput','ibput',['dest','source','dst','sst','bsize','nblocks','pe'],RMA,['']),
+ ('ibget','ibget',['dest','source','dst','sst','bsize','nblocks','pe'],RMA,['']),
  ('p','p',['dest','value','pe'],RMA,['']),
  ('g','g',['src','pe'],RMA,['','const ']),
  ('atomic_fetch','atomic_fetch',['src','pe'],EXT,['','const ']),

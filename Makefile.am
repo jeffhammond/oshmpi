@@ -32,6 +32,7 @@ include_HEADERS = src/shmem.h \
 		  src/shmem15-amo.h \
 		  src/shmem15-signal.h \
 		  src/shmem15-team.h \
+		  src/shmem16.h \
 		  src/shmemx.h \
 		  src/shmem-internals.h \
 		  src/oshmpi-direct.h \

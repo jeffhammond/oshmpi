@@ -7,5 +7,6 @@
 #include "shmem15-amo.h"
 #include "shmem15-signal.h"
 #include "shmem15-team.h"
+#include "shmem16.h"
 
 #endif /* OSHMPI_SHMEM15_H */

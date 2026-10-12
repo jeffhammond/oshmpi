@@ -57,6 +57,11 @@ int shmem_init_thread(int requested, int *provided)
     return 0;
 }
 
+void shmem_query_initialized(int *initialized)
+{
+    *initialized = oshmpi_initialized();
+}
+
 void shmem_query_thread(int *provided)
 {
     *provided = oshmpi_query_thread();

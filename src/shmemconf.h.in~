@@ -21,9 +21,6 @@
 /* Defined when SHMEM memory management routine barriers are enabled */
 #undef ENABLE_SHEAP_BARRIERS
 
-/* Defined when whether SMP optimizations (i.e. MPI bypass) are enabled */
-#undef ENABLE_SMP_OPTIMIZATIONS
-
 /* Define to enable ARMCI block-strided extension. */
 #undef EXTENSION_ARMCI_STRIDED
 

@@ -122,6 +122,12 @@ OSHMPI_TEAM_RED_BIT_TYPES(OSHMPI_TEAM_RED_DECL_BIT)
 OSHMPI_TEAM_RED_MINMAX_TYPES(OSHMPI_TEAM_RED_DECL_MINMAX)
 OSHMPI_TEAM_RED_SUMPROD_TYPES(OSHMPI_TEAM_RED_DECL_SUMPROD)
 
+/* 1.6 inclusive and exclusive prefix sums */
+#define OSHMPI_TEAM_SCAN_DECL(N, T)                                                                \
+    int shmem_##N##_sum_inscan(shmem_team_t team, T * dest, const T * source, size_t nelems);      \
+    int shmem_##N##_sum_exscan(shmem_team_t team, T * dest, const T * source, size_t nelems);
+OSHMPI_TEAM_RED_SUMPROD_TYPES(OSHMPI_TEAM_SCAN_DECL)
+
 /* ---- C11 type-generic bindings -------------------------------------------- */
 
 #if !defined(__cplusplus) && !defined(SHMEM_INTERNAL_INCLUDE)
@@ -389,6 +395,46 @@ OSHMPI_TEAM_RED_SUMPROD_TYPES(OSHMPI_TEAM_RED_DECL_SUMPROD)
              double _Complex *: shmem_complexd_prod_reduce,  \
              float _Complex *: shmem_complexf_prod_reduce  \
             )(team, dest, source, nreduce)
+
+#define shmem_sum_inscan(team, dest, source, nelems) \
+    _Generic(&(dest)[0],  \
+             unsigned char *: shmem_uchar_sum_inscan,  \
+             unsigned short *: shmem_ushort_sum_inscan,  \
+             unsigned int *: shmem_uint_sum_inscan,  \
+             unsigned long *: shmem_ulong_sum_inscan,  \
+             unsigned long long *: shmem_ulonglong_sum_inscan,  \
+             char *: shmem_char_sum_inscan,  \
+             signed char *: shmem_schar_sum_inscan,  \
+             short *: shmem_short_sum_inscan,  \
+             int *: shmem_int_sum_inscan,  \
+             long *: shmem_long_sum_inscan,  \
+             long long *: shmem_longlong_sum_inscan,  \
+             float *: shmem_float_sum_inscan,  \
+             double *: shmem_double_sum_inscan,  \
+             long double *: shmem_longdouble_sum_inscan,  \
+             double _Complex *: shmem_complexd_sum_inscan,  \
+             float _Complex *: shmem_complexf_sum_inscan  \
+            )(team, dest, source, nelems)
+
+#define shmem_sum_exscan(team, dest, source, nelems) \
+    _Generic(&(dest)[0],  \
+             unsigned char *: shmem_uchar_sum_exscan,  \
+             unsigned short *: shmem_ushort_sum_exscan,  \
+             unsigned int *: shmem_uint_sum_exscan,  \
+             unsigned long *: shmem_ulong_sum_exscan,  \
+             unsigned long long *: shmem_ulonglong_sum_exscan,  \
+             char *: shmem_char_sum_exscan,  \
+             signed char *: shmem_schar_sum_exscan,  \
+             short *: shmem_short_sum_exscan,  \
+             int *: shmem_int_sum_exscan,  \
+             long *: shmem_long_sum_exscan,  \
+             long long *: shmem_longlong_sum_exscan,  \
+             float *: shmem_float_sum_exscan,  \
+             double *: shmem_double_sum_exscan,  \
+             long double *: shmem_longdouble_sum_exscan,  \
+             double _Complex *: shmem_complexd_sum_exscan,  \
+             float _Complex *: shmem_complexf_sum_exscan  \
+            )(team, dest, source, nelems)
 /* END GENERATED */
 
 #endif /* C11 bindings */

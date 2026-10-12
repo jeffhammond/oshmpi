@@ -62,8 +62,7 @@ int main(void)
 
     int major, minor;
     shmem_info_get_version(&major, &minor);
-    /* the version macro stays 1.3 until the implementation is complete; see docs/COMPLIANCE.md */
-    CHECK(major == 1 && minor == 3, "version is 1.3");
+    CHECK(major == 1 && minor == 6, "version is 1.6");
 
     RMA_TEST(uchar, unsigned char, s_uc);
     RMA_TEST(int64, int64_t, s_i64);

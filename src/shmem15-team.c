@@ -42,6 +42,7 @@ void oshmpi_team_finalize(void)
     }
     free(oshmpi_team_world_obj.world);
     oshmpi_team_world_obj.world = NULL;
+    team_once = (pthread_once_t) PTHREAD_ONCE_INIT;      /* a later initialization makes them again */
 }
 
 static void team_init_once(void)
@@ -502,3 +503,36 @@ static int reduce_impl(shmem_team_t team, void * dest, const void * source, size
 OSHMPI_TEAM_RED_BIT_TYPES(OSHMPI_TEAM_RED_DEF_BIT)
 OSHMPI_TEAM_RED_MINMAX_TYPES(OSHMPI_TEAM_RED_DEF_MINMAX)
 OSHMPI_TEAM_RED_SUMPROD_TYPES(OSHMPI_TEAM_RED_DEF_SUMPROD)
+
+/* ---- scans (1.6): inclusive and exclusive prefix sums ---- */
+
+static int scan_impl(shmem_team_t team, void * dest, const void * source, size_t nelems,
+                     size_t esz, MPI_Datatype type, int exclusive)
+{
+    oshmpi_team_init();
+    if (team == SHMEM_TEAM_INVALID) return 1;
+    coll_begin();
+    const size_t chunk = (size_t) 1 << 28;
+    size_t done = 0;
+    while (done < nelems) {
+        size_t n = nelems - done < chunk ? nelems - done : chunk;
+        char * d = (char *) dest + done * esz;
+        const void * s = dest == source ? MPI_IN_PLACE : (const void *) ((const char *) source + done * esz);
+        if (exclusive) {
+            MPI_Exscan(s, d, (int) n, type, MPI_SUM, team->comm);
+            if (team->rank == 0) memset(d, 0, n * esz);   /* MPI leaves PE 0's result undefined */
+        } else {
+            MPI_Scan(s, d, (int) n, type, MPI_SUM, team->comm);
+        }
+        done += n;
+    }
+    coll_end();
+    return 0;
+}
+
+#define OSHMPI_TEAM_SCAN_DEF(N, T)                                                                 \
+    int shmem_##N##_sum_inscan(shmem_team_t team, T * dest, const T * source, size_t nelems)       \
+    { return scan_impl(team, dest, source, nelems, sizeof(T), OSHMPI_MPIT_##N, 0); }               \
+    int shmem_##N##_sum_exscan(shmem_team_t team, T * dest, const T * source, size_t nelems)       \
+    { return scan_impl(team, dest, source, nelems, sizeof(T), OSHMPI_MPIT_##N, 1); }
+OSHMPI_TEAM_RED_SUMPROD_TYPES(OSHMPI_TEAM_SCAN_DEF)

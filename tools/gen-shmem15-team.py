@@ -41,6 +41,8 @@ OPS = [
  ('min_reduce','min_reduce',['team','dest','source','nreduce'],MINMAX),
  ('sum_reduce','sum_reduce',['team','dest','source','nreduce'],SUMPROD),
  ('prod_reduce','prod_reduce',['team','dest','source','nreduce'],SUMPROD),
+ ('sum_inscan','sum_inscan',['team','dest','source','nelems'],SUMPROD),
+ ('sum_exscan','sum_exscan',['team','dest','source','nelems'],SUMPROD),
 ]
 
 def macro(name, suf, args, types):

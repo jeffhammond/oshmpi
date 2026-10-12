@@ -204,8 +204,10 @@ void oshmpi_abort(int code, char * message)
 
 int oshmpi_initialize(int threading)
 {
-    if (shmem_is_finalized) {
-        fprintf(stderr, "OSHMPI: cannot initialize again after shmem_finalize (MPI cannot be restarted)\n");
+    int fin;
+    MPI_Finalized(&fin);
+    if (fin || shmem_is_finalized) {
+        fprintf(stderr, "OSHMPI: cannot initialize after MPI_Finalize\n");
         return 1;
     }
     shmem_init_count++;
@@ -510,6 +512,11 @@ int oshmpi_initialize(int threading)
     return 0;
 }
 
+int oshmpi_initialized(void)
+{
+    return shmem_is_initialized && shmem_init_count > 0;
+}
+
 int oshmpi_query_thread(void)
 {
     switch (shmem_thread_provided) {
@@ -520,56 +527,68 @@ int oshmpi_query_thread(void)
     }
 }
 
-/* shmem_finalize: the library goes away with the last of the matching calls */
+/* Free everything the library holds except MPI itself, so that it can be initialized again. */
+static void oshmpi_teardown(void)
+{
+    if (!shmem_is_initialized) return;
+
+#if ENABLE_COMM_CACHING
+    for (int i=0; i<shmem_comm_cache_size; i++) {
+        if (comm_cache[i].comm != MPI_COMM_NULL) {
+            MPI_Comm_free( &(comm_cache[i].comm) );
+            MPI_Group_free( &(comm_cache[i].group) );
+        }
+    }
+    free(comm_cache);
+#endif
+    MPI_Barrier(SHMEM_COMM_WORLD);
+
+#ifdef ENABLE_MPMD_SUPPORT
+    if (shmem_running_mpmd) {
+        MPI_Win_unlock_all(shmem_mpmd_appnum_win);
+        MPI_Win_free(&shmem_mpmd_appnum_win);
+    }
+#endif
+    MPI_Win_unlock_all(shmem_etext_win);
+    MPI_Win_free(&shmem_etext_win);
+
+    MPI_Win_unlock_all(shmem_sheap_win);
+    MPI_Win_free(&shmem_sheap_win);
+
+    oshmpi_direct_finalize();
+
+    oshmpi_team_finalize();
+    MPI_Group_free(&SHMEM_GROUP_WORLD);
+    MPI_Comm_free(&SHMEM_COMM_WORLD);
+
+    shmem_is_initialized = 0;
+}
+
+/* shmem_finalize: the library goes away with the last of the matching calls.  MPI stays up, so
+ * that the library can be initialized again; if OSHMPI started MPI, it is finalized at exit. */
 void oshmpi_release(void)
 {
     if (shmem_init_count > 1) { shmem_init_count--; return; }
     shmem_init_count = 0;
-    oshmpi_finalize();
+    int flag;
+    MPI_Finalized(&flag);
+    if (!flag) oshmpi_teardown();
 }
 
+/* At exit, or when MPI is about to go away: release whatever is left, and finish MPI if we own it. */
 void oshmpi_finalize(void)
 {
     int flag;
     MPI_Finalized(&flag);
 
     if (!flag) {
-        if (shmem_is_initialized && !shmem_is_finalized) {
-
-#if ENABLE_COMM_CACHING
-            for (int i=0; i<shmem_comm_cache_size; i++) {
-                if (comm_cache[i].comm != MPI_COMM_NULL) {
-                    MPI_Comm_free( &(comm_cache[i].comm) );
-                    MPI_Group_free( &(comm_cache[i].group) );
-                }
-            }
-            free(comm_cache);
-#endif
-            MPI_Barrier(SHMEM_COMM_WORLD);
-
-#ifdef ENABLE_MPMD_SUPPORT
-            if (shmem_running_mpmd) {
-                MPI_Win_unlock_all(shmem_mpmd_appnum_win);
-                MPI_Win_free(&shmem_mpmd_appnum_win);
-            }
-#endif
-            MPI_Win_unlock_all(shmem_etext_win);
-            MPI_Win_free(&shmem_etext_win);
-
-            MPI_Win_unlock_all(shmem_sheap_win);
-            MPI_Win_free(&shmem_sheap_win);
-
-            oshmpi_direct_finalize();
-
-            oshmpi_team_finalize();
-            MPI_Group_free(&SHMEM_GROUP_WORLD);
-            MPI_Comm_free(&SHMEM_COMM_WORLD);
-
+        oshmpi_teardown();
+        shmem_init_count = 0;
+        /* If the user initialized MPI, the user finalizes it. */
+        if (shmem_mpi_owner) {
+            MPI_Finalize();
             shmem_is_finalized = 1;
         }
-        /* If the user initialized MPI, the user finalizes it. */
-        if (shmem_mpi_owner)
-            MPI_Finalize();
     }
     return;
 }

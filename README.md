@@ -5,7 +5,7 @@ OSHMPI: OpenSHMEM over MPI-3
 
 Bug fixes and specific feature requests will be addressed as time permits.  We will try to read and comment on issues and pull requests promptly.
 
-We recommend you use [Sandia OpenSHMEM](https://github.com/Sandia-OpenSHMEM/SOS) to get the latest OpenSHMEM features.  This branch implements the OpenSHMEM 1.3 API (including the standard shmem_malloc/shmem_calloc/shmem_free/shmem_realloc/shmem_align names), most of 1.4, and the main additions of 1.5 and the 1.6 draft: teams and team collectives, put with signal, nonblocking atomics, `wait_until`/`test` on arrays of variables, and `shmem_malloc_with_hints`.  `docs/COMPLIANCE.md` lists what is and is not implemented; `SHMEM_MINOR_VERSION` still reports 1.3 because the implementation is partial.
+We recommend you use [Sandia OpenSHMEM](https://github.com/Sandia-OpenSHMEM/SOS) to get the latest OpenSHMEM features.  This branch implements the OpenSHMEM 1.6 C API: the 1.3 base (including the standard shmem_malloc/shmem_calloc/shmem_free/shmem_realloc/shmem_align names), contexts, teams and team collectives, put with signal, nonblocking atomics, `wait_until`/`test` on arrays of variables, `shmem_malloc_with_hints`, scans, interleaved block transfers, `shmem_pe_quiet`, and repeated initialization.  `docs/COMPLIANCE.md` lists the deviations; `SHMEM_MINOR_VERSION` reports 6.
 
 Test Status
 ===========

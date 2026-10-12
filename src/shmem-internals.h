@@ -104,6 +104,7 @@ void oshmpi_abort(int code, char * message);
  * down by the last one, or by oshmpi_finalize. */
 int  oshmpi_initialize(int threading);
 void oshmpi_release(void);
+int  oshmpi_initialized(void); /* nonzero between the first init and the matching last finalize */
 int  oshmpi_query_thread(void); /* returns the SHMEM_THREAD_* level provided */
 
 void oshmpi_finalize(void);

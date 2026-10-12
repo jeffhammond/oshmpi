@@ -1,12 +1,10 @@
 # OpenSHMEM compliance status
 
-OSHMPI is **not** a fully conforming OpenSHMEM implementation of any version beyond 1.2/1.3, and does not aim to be.
-The goal is: every easy feature, and every harder feature that a third-party test validates.  A feature counts as done
-only when a third-party test exercises it and passes (`tests/third_party/STATUS.md`).
-
-`SHMEM_MINOR_VERSION` is therefore still **1.3**; the features beyond 1.3 listed below are implemented but the version
-macro is not bumped because the implementation is partial.  `docs/DEVELOPMENT_PLAN.md` has the history and the remaining
-work; the reference text is the OpenSHMEM specification (`content/*.tex` in the specification repository).
+OSHMPI implements the OpenSHMEM 1.6 API (the C bindings; there is no Fortran) and reports `SHMEM_MINOR_VERSION` **6**.
+The deviations from the specification are listed under "Known deviations" below.  A feature counts as done when a
+test exercises it and passes (`tests/`, and the third-party suites in `tests/third_party/STATUS.md`).
+`docs/DEVELOPMENT_PLAN.md` has the history; the reference text is the OpenSHMEM specification (`content/*.tex` in the
+specification repository).
 
 Requirements: a C11 compiler (checked by `configure`) and MPI-3.
 
@@ -23,6 +21,10 @@ Requirements: a C11 compiler (checked by `configure`) and MPI-3.
 | C11 type-generic bindings (RMA, AMO, `wait_until`, `test`, with optional context argument) | 1.3/1.4 | `tools/gen-c11-generics.py`; selects on basic C types |
 | `SHMEM_SYMMETRIC_SIZE`, `SHMEM_VERSION`, `SHMEM_INFO` | 1.4 | Size accepts floating-point values and k/m/g/t suffixes (powers of 1024) as in 1.5, rounds up, and an invalid value aborts; the heap holds at least that many bytes. `SHMEM_DEBUG` accepted and ignored; `SMA_*` and other vendor names still read, with the same syntax |
 | `shmem_pcontrol` | 1.5 | no-op |
+| `shmem_<T>_sum_inscan`, `shmem_<T>_sum_exscan` and C11 `shmem_sum_inscan/exscan` | 1.6 | `MPI_Scan`/`MPI_Exscan` on the team's communicator, in pieces of 2^28 elements; PE 0's exclusive result is zeroed. `test_shmem16` |
+| `shmem_<T>_ibput/ibget`, `shmem_ibput/ibget{8..128}`, context and C11 forms | 1.6 | Adjacent blocks collapse into one transfer, one-element blocks are a strided transfer, otherwise block by block |
+| `shmem_pe_quiet`, `shmem_ctx_pe_quiet` | 1.6 | flushes the listed PEs on both windows |
+| `shmem_query_initialized` | 1.6 | |
 | `shmem_<T>_wait_until_{all,any,some}` and `_vector` forms, `shmem_<T>_test_{all,any,some}` and `_vector` forms | 1.5 | `tools/gen-shmem15-sync.py` generates the C11 bindings; the any/some scans rotate their start so repeated `test_any` calls reach every satisfied element |
 | Nonblocking atomics `shmem_<T>_atomic_{fetch,swap,compare_swap,fetch_inc,fetch_add,fetch_and,fetch_or,fetch_xor}_nbi`, with context versions and C11 bindings | 1.5 | Complete inside the call, which the specification allows |
 | `shmem_malloc_with_hints`, `SHMEM_MALLOC_ATOMICS_REMOTE`, `SHMEM_MALLOC_SIGNAL_REMOTE` | 1.5 | Hints are advisory and ignored |
@@ -38,7 +40,7 @@ Requirements: a C11 compiler (checked by `configure`) and MPI-3.
 
 ## Not implemented
 
-Scans (`shmem_*_scan`), re-initialization after finalize (1.6), and the vendor extensions the Sandia and Cray
+Nothing in the specification.  Missing are the vendor extensions the Sandia and Cray
 suites use beyond the specification: `shmemx_team_*` (Cray), `shmemx_am_*` (active messages) and `SHMEMX_*` malloc flags, and
 the C++ overloaded names (`shmem_g(...)` and so on) that Sandia OpenSHMEM provides.  The tests that need these do not compile;
 the list is in `tests/third_party/STATUS.md`.
@@ -57,8 +59,10 @@ the list is in `tests/third_party/STATUS.md`.
   data-segment windows over 2 GiB and every collective, team or legacy, move more than 2^31-1 elements or bytes, using
   derived datatypes or pieces.  Opt-in tests (`OSHMPI_TEST_LARGE=1` or `2`): `test_bigcount`, `test_bigcoll`, `test_bigbss`.
 - `shmem_init` and `shmem_init_thread` may be called more than once, each matched by a `shmem_finalize`; the library is
-  torn down by the last one.  It cannot be initialized again after that (MPI cannot be restarted): the call fails, and
-  `shmem_init_thread` returns nonzero.
+  torn down by the last one and can be initialized again (`test_init_nested`, `test_reinit`).  The symmetric heap and
+  windows are released at the last finalize, but MPI stays initialized until the program exits when OSHMPI started it,
+  so `MPI_Finalize` happens at exit rather than inside `shmem_finalize`.  Initializing after the application has called
+  `MPI_Finalize` fails.
 - Static/global symmetric data on macOS uses the main executable's `__DATA` segment.
 
 ## Known test failures (not believed to be OSHMPI bugs)

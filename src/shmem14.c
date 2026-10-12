@@ -164,6 +164,79 @@ void shmem_iget8(void *dest, const void *src, ptrdiff_t dst, ptrdiff_t sst, size
 void shmem_iget16(void *dest, const void *src, ptrdiff_t dst, ptrdiff_t sst, size_t nelems, int pe)
 { oshmpi_get_strided(OSHMPI_MT_SIZED_16, dest, src, dst, sst, nelems, pe); }
 
+/* ---- interleaved block transfers (1.6) ----------------------------------- */
+
+/* nblocks blocks of bsize elements; block i starts at element i*dst of dest and i*sst of source.
+ * Adjacent blocks collapse into one contiguous transfer, one-element blocks are a plain strided
+ * transfer, and anything else moves block by block. */
+static void ib_transfer(int is_put, MPI_Datatype t, void *dest, const void *src, ptrdiff_t dst,
+                        ptrdiff_t sst, size_t bsize, size_t nblocks, int pe)
+{
+    if (bsize == 0 || nblocks == 0) return;
+    if (dst == (ptrdiff_t) bsize && sst == (ptrdiff_t) bsize) {
+        if (is_put) oshmpi_put(t, dest, src, bsize * nblocks, pe);
+        else oshmpi_get(t, dest, src, bsize * nblocks, pe);
+    } else if (bsize == 1) {
+        if (is_put) oshmpi_put_strided(t, dest, src, dst, sst, nblocks, pe);
+        else oshmpi_get_strided(t, dest, src, dst, sst, nblocks, pe);
+    } else {
+        ptrdiff_t es = (ptrdiff_t) oshmpi_type_size(t);
+        for (size_t i = 0; i < nblocks; i++) {
+            char *d = (char *) dest + (ptrdiff_t) i * dst * es;
+            const char *s = (const char *) src + (ptrdiff_t) i * sst * es;
+            if (is_put) oshmpi_put(t, d, s, bsize, pe);
+            else oshmpi_get(t, d, s, bsize, pe);
+        }
+    }
+}
+
+#define OSHMPI_DEFINE_IB(N, T)                                                                 \
+void shmem_##N##_ibput(T *dest, const T *src, ptrdiff_t dst, ptrdiff_t sst, size_t bsize,      \
+                       size_t nblocks, int pe)                                                 \
+{ ib_transfer(1, OSHMPI_MT_##N, dest, src, dst, sst, bsize, nblocks, pe); }                    \
+void shmem_##N##_ibget(T *dest, const T *src, ptrdiff_t dst, ptrdiff_t sst, size_t bsize,      \
+                       size_t nblocks, int pe)                                                 \
+{ ib_transfer(0, OSHMPI_MT_##N, dest, src, dst, sst, bsize, nblocks, pe); }                    \
+void shmem_ctx_##N##_ibput(shmem_ctx_t ctx, T *dest, const T *src, ptrdiff_t dst,              \
+                           ptrdiff_t sst, size_t bsize, size_t nblocks, int pe)                \
+{ ib_transfer(1, OSHMPI_MT_##N, dest, src, dst, sst, bsize, nblocks, oshmpi_ctx_pe(ctx, pe)); } \
+void shmem_ctx_##N##_ibget(shmem_ctx_t ctx, T *dest, const T *src, ptrdiff_t dst,              \
+                           ptrdiff_t sst, size_t bsize, size_t nblocks, int pe)                \
+{ ib_transfer(0, OSHMPI_MT_##N, dest, src, dst, sst, bsize, nblocks, oshmpi_ctx_pe(ctx, pe)); }
+OSHMPI_RMA_TYPES(OSHMPI_DEFINE_IB)
+
+#define OSHMPI_DEFINE_IB_SIZED(S)                                                              \
+void shmem_ibput##S(void *dest, const void *src, ptrdiff_t dst, ptrdiff_t sst, size_t bsize,   \
+                    size_t nblocks, int pe)                                                    \
+{ ib_transfer(1, OSHMPI_MT_SIZED_##S, dest, src, dst, sst, bsize, nblocks, pe); }              \
+void shmem_ibget##S(void *dest, const void *src, ptrdiff_t dst, ptrdiff_t sst, size_t bsize,   \
+                    size_t nblocks, int pe)                                                    \
+{ ib_transfer(0, OSHMPI_MT_SIZED_##S, dest, src, dst, sst, bsize, nblocks, pe); }              \
+void shmem_ctx_ibput##S(shmem_ctx_t ctx, void *dest, const void *src, ptrdiff_t dst,           \
+                        ptrdiff_t sst, size_t bsize, size_t nblocks, int pe)                   \
+{ ib_transfer(1, OSHMPI_MT_SIZED_##S, dest, src, dst, sst, bsize, nblocks, oshmpi_ctx_pe(ctx, pe)); } \
+void shmem_ctx_ibget##S(shmem_ctx_t ctx, void *dest, const void *src, ptrdiff_t dst,           \
+                        ptrdiff_t sst, size_t bsize, size_t nblocks, int pe)                   \
+{ ib_transfer(0, OSHMPI_MT_SIZED_##S, dest, src, dst, sst, bsize, nblocks, oshmpi_ctx_pe(ctx, pe)); }
+OSHMPI_DEFINE_IB_SIZED(8)
+OSHMPI_DEFINE_IB_SIZED(16)
+OSHMPI_DEFINE_IB_SIZED(32)
+OSHMPI_DEFINE_IB_SIZED(64)
+OSHMPI_DEFINE_IB_SIZED(128)
+
+/* ---- fine-grained completion (1.6) ---------------------------------------- */
+
+void shmem_ctx_pe_quiet(shmem_ctx_t ctx, const int *target_pes, size_t npes)
+{
+    if (npes == 0) return;
+    __atomic_thread_fence(__ATOMIC_SEQ_CST);
+    for (size_t i = 0; i < npes; i++) oshmpi_remote_sync_pe(oshmpi_ctx_pe(ctx, target_pes[i]));
+    oshmpi_local_sync();
+}
+
+void shmem_pe_quiet(const int *target_pes, size_t npes)
+{ shmem_ctx_pe_quiet(SHMEM_CTX_DEFAULT, target_pes, npes); }
+
 /* ---- atomics ----------------------------------------------------------- */
 
 #define OSHMPI_DEFINE_AMO_FETCH_SET_SWAP(N, T)                                                 \

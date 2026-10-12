@@ -6,6 +6,7 @@
 #define OSHMPI_PICK_3(_1,_2,_3,_4,NAME,...) NAME
 #define OSHMPI_PICK_4(_1,_2,_3,_4,_5,NAME,...) NAME
 #define OSHMPI_PICK_6(_1,_2,_3,_4,_5,_6,_7,NAME,...) NAME
+#define OSHMPI_PICK_7(_1,_2,_3,_4,_5,_6,_7,_8,NAME,...) NAME
 
 #define OSHMPI_G_put_NOCTX(dest, source, nelems, pe) \
     _Generic(&(dest)[0], \
@@ -228,6 +229,80 @@
             )(ctx, dest, source, dst, sst, nelems, pe)
 #define shmem_iget(...) \
     OSHMPI_PICK_6(__VA_ARGS__, OSHMPI_G_iget_CTX, OSHMPI_G_iget_NOCTX, 0)(__VA_ARGS__)
+
+#define OSHMPI_G_ibput_NOCTX(dest, source, dst, sst, bsize, nblocks, pe) \
+    _Generic(&(dest)[0], \
+             float *: shmem_float_ibput, \
+             double *: shmem_double_ibput, \
+             long double *: shmem_longdouble_ibput, \
+             char *: shmem_char_ibput, \
+             signed char *: shmem_schar_ibput, \
+             short *: shmem_short_ibput, \
+             int *: shmem_int_ibput, \
+             long *: shmem_long_ibput, \
+             long long *: shmem_longlong_ibput, \
+             unsigned char *: shmem_uchar_ibput, \
+             unsigned short *: shmem_ushort_ibput, \
+             unsigned int *: shmem_uint_ibput, \
+             unsigned long *: shmem_ulong_ibput, \
+             unsigned long long *: shmem_ulonglong_ibput \
+            )(dest, source, dst, sst, bsize, nblocks, pe)
+#define OSHMPI_G_ibput_CTX(ctx, dest, source, dst, sst, bsize, nblocks, pe) \
+    _Generic(&(dest)[0], \
+             float *: shmem_ctx_float_ibput, \
+             double *: shmem_ctx_double_ibput, \
+             long double *: shmem_ctx_longdouble_ibput, \
+             char *: shmem_ctx_char_ibput, \
+             signed char *: shmem_ctx_schar_ibput, \
+             short *: shmem_ctx_short_ibput, \
+             int *: shmem_ctx_int_ibput, \
+             long *: shmem_ctx_long_ibput, \
+             long long *: shmem_ctx_longlong_ibput, \
+             unsigned char *: shmem_ctx_uchar_ibput, \
+             unsigned short *: shmem_ctx_ushort_ibput, \
+             unsigned int *: shmem_ctx_uint_ibput, \
+             unsigned long *: shmem_ctx_ulong_ibput, \
+             unsigned long long *: shmem_ctx_ulonglong_ibput \
+            )(ctx, dest, source, dst, sst, bsize, nblocks, pe)
+#define shmem_ibput(...) \
+    OSHMPI_PICK_7(__VA_ARGS__, OSHMPI_G_ibput_CTX, OSHMPI_G_ibput_NOCTX, 0)(__VA_ARGS__)
+
+#define OSHMPI_G_ibget_NOCTX(dest, source, dst, sst, bsize, nblocks, pe) \
+    _Generic(&(dest)[0], \
+             float *: shmem_float_ibget, \
+             double *: shmem_double_ibget, \
+             long double *: shmem_longdouble_ibget, \
+             char *: shmem_char_ibget, \
+             signed char *: shmem_schar_ibget, \
+             short *: shmem_short_ibget, \
+             int *: shmem_int_ibget, \
+             long *: shmem_long_ibget, \
+             long long *: shmem_longlong_ibget, \
+             unsigned char *: shmem_uchar_ibget, \
+             unsigned short *: shmem_ushort_ibget, \
+             unsigned int *: shmem_uint_ibget, \
+             unsigned long *: shmem_ulong_ibget, \
+             unsigned long long *: shmem_ulonglong_ibget \
+            )(dest, source, dst, sst, bsize, nblocks, pe)
+#define OSHMPI_G_ibget_CTX(ctx, dest, source, dst, sst, bsize, nblocks, pe) \
+    _Generic(&(dest)[0], \
+             float *: shmem_ctx_float_ibget, \
+             double *: shmem_ctx_double_ibget, \
+             long double *: shmem_ctx_longdouble_ibget, \
+             char *: shmem_ctx_char_ibget, \
+             signed char *: shmem_ctx_schar_ibget, \
+             short *: shmem_ctx_short_ibget, \
+             int *: shmem_ctx_int_ibget, \
+             long *: shmem_ctx_long_ibget, \
+             long long *: shmem_ctx_longlong_ibget, \
+             unsigned char *: shmem_ctx_uchar_ibget, \
+             unsigned short *: shmem_ctx_ushort_ibget, \
+             unsigned int *: shmem_ctx_uint_ibget, \
+             unsigned long *: shmem_ctx_ulong_ibget, \
+             unsigned long long *: shmem_ctx_ulonglong_ibget \
+            )(ctx, dest, source, dst, sst, bsize, nblocks, pe)
+#define shmem_ibget(...) \
+    OSHMPI_PICK_7(__VA_ARGS__, OSHMPI_G_ibget_CTX, OSHMPI_G_ibget_NOCTX, 0)(__VA_ARGS__)
 
 #define OSHMPI_G_p_NOCTX(dest, value, pe) \
     _Generic(&(dest)[0], \
