@@ -99,7 +99,11 @@ void oshmpi_abort(int code, char * message);
  * int oshmpi_address_is_symmetric(size_t my_sheap_base_ptr);
  */
 
-void oshmpi_initialize(int threading);
+/* Returns 0, or nonzero if the library cannot be initialized again because it was finalized
+ * (MPI cannot be restarted).  Each call needs a matching oshmpi_release; the library is torn
+ * down by the last one, or by oshmpi_finalize. */
+int  oshmpi_initialize(int threading);
+void oshmpi_release(void);
 int  oshmpi_query_thread(void); /* returns the SHMEM_THREAD_* level provided */
 
 void oshmpi_finalize(void);

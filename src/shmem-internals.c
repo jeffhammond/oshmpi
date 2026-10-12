@@ -11,6 +11,7 @@ MPI_Group SHMEM_GROUP_WORLD;
 int       shmem_is_initialized;
 int       shmem_thread_provided;
 int       shmem_is_finalized;
+static int shmem_init_count;      /* initialization calls not yet matched by a finalize */
 int       shmem_world_size, shmem_world_rank;
 char      shmem_procname[MPI_MAX_PROCESSOR_NAME];
 int       shmem_sheap_direct;
@@ -201,8 +202,13 @@ void oshmpi_abort(int code, char * message)
     return;
 }
 
-void oshmpi_initialize(int threading)
+int oshmpi_initialize(int threading)
 {
+    if (shmem_is_finalized) {
+        fprintf(stderr, "OSHMPI: cannot initialize again after shmem_finalize (MPI cannot be restarted)\n");
+        return 1;
+    }
+    shmem_init_count++;
     {
         int flag;
         MPI_Initialized(&flag);
@@ -501,7 +507,7 @@ void oshmpi_initialize(int threading)
         shmem_is_initialized = 1;
         oshmpi_team_init(); /* collective: creates SHMEM_TEAM_SHARED while every PE is here */
     }
-    return;
+    return 0;
 }
 
 int oshmpi_query_thread(void)
@@ -512,6 +518,14 @@ int oshmpi_query_thread(void)
         case MPI_THREAD_FUNNELED:   return 1; /* SHMEM_THREAD_FUNNELED   */
         default:                    return 0; /* SHMEM_THREAD_SINGLE     */
     }
+}
+
+/* shmem_finalize: the library goes away with the last of the matching calls */
+void oshmpi_release(void)
+{
+    if (shmem_init_count > 1) { shmem_init_count--; return; }
+    shmem_init_count = 0;
+    oshmpi_finalize();
 }
 
 void oshmpi_finalize(void)

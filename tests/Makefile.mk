@@ -39,6 +39,12 @@ check_PROGRAMS += tests/barrier_performance \
                   tests/test_symsize_frac \
                   tests/test_symsize_odd \
                   tests/test_symsize_legacy \
+                  tests/test_legacy \
+                  tests/test_init_nested \
+                  tests/test_init_thread_single \
+                  tests/test_init_thread_funneled \
+                  tests/test_init_thread_serialized \
+                  tests/test_init_thread_multiple \
                   tests/test_symsize_full \
                   # end
 
@@ -78,6 +84,12 @@ TESTS += tests/barrier_performance \
          tests/test_symsize_frac \
          tests/test_symsize_odd \
          tests/test_symsize_legacy \
+         tests/test_legacy \
+         tests/test_init_nested \
+         tests/test_init_thread_single \
+         tests/test_init_thread_funneled \
+         tests/test_init_thread_serialized \
+         tests/test_init_thread_multiple \
          tests/test_symsize_full \
          # end
 
@@ -131,3 +143,23 @@ tests_test_symsize_legacy_LDADD = libshmem.la
 tests_test_symsize_full_SOURCES = tests/test_symsize.c
 tests_test_symsize_full_CPPFLAGS = -DSZ='"2m"' -DWANT=2097152 -DEXHAUST
 tests_test_symsize_full_LDADD = libshmem.la
+
+
+tests_test_legacy_LDADD = libshmem.la -lm
+tests_test_init_nested_LDADD = libshmem.la
+tests_test_init_thread_single_SOURCES = tests/test_init_thread.c
+tests_test_init_thread_single_CPPFLAGS = -DREQ=0
+tests_test_init_thread_single_LDFLAGS = -pthread
+tests_test_init_thread_single_LDADD = libshmem.la
+tests_test_init_thread_funneled_SOURCES = tests/test_init_thread.c
+tests_test_init_thread_funneled_CPPFLAGS = -DREQ=1
+tests_test_init_thread_funneled_LDFLAGS = -pthread
+tests_test_init_thread_funneled_LDADD = libshmem.la
+tests_test_init_thread_serialized_SOURCES = tests/test_init_thread.c
+tests_test_init_thread_serialized_CPPFLAGS = -DREQ=2
+tests_test_init_thread_serialized_LDFLAGS = -pthread
+tests_test_init_thread_serialized_LDADD = libshmem.la
+tests_test_init_thread_multiple_SOURCES = tests/test_init_thread.c
+tests_test_init_thread_multiple_CPPFLAGS = -DREQ=3
+tests_test_init_thread_multiple_LDFLAGS = -pthread
+tests_test_init_thread_multiple_LDADD = libshmem.la

@@ -25,14 +25,14 @@
 
 void start_pes(int npes)
 {
-    oshmpi_initialize(MPI_THREAD_SINGLE);
+    if (oshmpi_initialize(MPI_THREAD_SINGLE)) exit(1);
     atexit(oshmpi_finalize);
     return;
 }
 
 void shmem_init(void)
 {
-    oshmpi_initialize(MPI_THREAD_SINGLE);
+    if (oshmpi_initialize(MPI_THREAD_SINGLE)) exit(1);
     atexit(oshmpi_finalize);
     return;
 }
@@ -51,7 +51,7 @@ static int oshmpi_mpi_thread_level(int shmem_level)
 /* Returns 0 on success; the level actually provided is returned in *provided. */
 int shmem_init_thread(int requested, int *provided)
 {
-    oshmpi_initialize(oshmpi_mpi_thread_level(requested));
+    if (oshmpi_initialize(oshmpi_mpi_thread_level(requested))) { *provided = SHMEM_THREAD_SINGLE; return 1; }
     *provided = oshmpi_query_thread();
     atexit(oshmpi_finalize);
     return 0;
@@ -65,7 +65,7 @@ void shmem_query_thread(int *provided)
 
 void shmem_finalize(void)
 {
-    oshmpi_finalize();
+    oshmpi_release();
     return;
 }
 
@@ -121,13 +121,13 @@ int shmem_pe_accessible(int pe)
         return (shmem_mpmd_my_appnum == pe_appnum);
     }
 #else
-    return ( 0<=pe && pe<=shmem_world_size );
+    return ( 0<=pe && pe<shmem_world_size );
 #endif
 }
 
 int shmem_addr_accessible(OSHMPI_CONST void *addr, int pe)
 {
-    if (0<=pe && pe<=shmem_world_size) {
+    if (0<=pe && pe<shmem_world_size) {
         /* neither of these two variables is used here */
         enum shmem_window_id_e win_id;
         shmem_offset_t win_offset;
@@ -339,11 +339,11 @@ void shmem_putmem(void *target, const void *source, size_t len, int pe)
 /* these are extensions */
 void shmem_complexf_put(float _Complex * target, const float _Complex * source, size_t len, int pe)
 {
-    oshmpi_put(MPI_COMPLEX, target, source, len, pe);
+    oshmpi_put(MPI_C_FLOAT_COMPLEX, target, source, len, pe);
 }
 void shmem_complexd_put(double _Complex * target, const double _Complex * source, size_t len, int pe)
 {
-    oshmpi_put(MPI_DOUBLE_COMPLEX, target, source, len, pe);
+    oshmpi_put(MPI_C_DOUBLE_COMPLEX, target, source, len, pe);
 }
 
 /* Elemental Data Get Routines */
@@ -456,11 +456,11 @@ void shmem_getmem(void *target, const void *source, size_t len, int pe)
 /* these are extensions */
 void shmem_complexf_get(float _Complex * target, const float _Complex * source, size_t len, int pe)
 {
-    oshmpi_get(MPI_COMPLEX, target, source, len, pe);
+    oshmpi_get(MPI_C_FLOAT_COMPLEX, target, source, len, pe);
 }
 void shmem_complexd_get(double _Complex * target, const double _Complex * source, size_t len, int pe)
 {
-    oshmpi_get(MPI_DOUBLE_COMPLEX, target, source, len, pe);
+    oshmpi_get(MPI_C_DOUBLE_COMPLEX, target, source, len, pe);
 }
 
 /* Strided Put Routines */

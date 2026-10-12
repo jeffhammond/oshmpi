@@ -56,6 +56,9 @@ the list is in `tests/third_party/STATUS.md`.
 - Counts and sizes are not limited to an MPI `int`.  Contiguous RMA, strided RMA (including strides over 2^31 elements),
   data-segment windows over 2 GiB and every collective, team or legacy, move more than 2^31-1 elements or bytes, using
   derived datatypes or pieces.  Opt-in tests (`OSHMPI_TEST_LARGE=1` or `2`): `test_bigcount`, `test_bigcoll`, `test_bigbss`.
+- `shmem_init` and `shmem_init_thread` may be called more than once, each matched by a `shmem_finalize`; the library is
+  torn down by the last one.  It cannot be initialized again after that (MPI cannot be restarted): the call fails, and
+  `shmem_init_thread` returns nonzero.
 - Static/global symmetric data on macOS uses the main executable's `__DATA` segment.
 
 ## Known test failures (not believed to be OSHMPI bugs)
