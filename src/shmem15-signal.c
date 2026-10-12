@@ -49,10 +49,10 @@ void shmem_##N##_put_signal_nbi(T *dest, const T *source, size_t nelems, uint64_
 { oshmpi_put_signal(dest, source, nelems * sizeof(T), sig_addr, signal, sig_op, pe, 1); }      \
 void shmem_ctx_##N##_put_signal(shmem_ctx_t ctx, T *dest, const T *source, size_t nelems,      \
                                 uint64_t *sig_addr, uint64_t signal, int sig_op, int pe)       \
-{ (void) ctx; shmem_##N##_put_signal(dest, source, nelems, sig_addr, signal, sig_op, pe); }    \
+{ shmem_##N##_put_signal(dest, source, nelems, sig_addr, signal, sig_op, oshmpi_ctx_pe(ctx, pe)); }    \
 void shmem_ctx_##N##_put_signal_nbi(shmem_ctx_t ctx, T *dest, const T *source, size_t nelems,  \
                                     uint64_t *sig_addr, uint64_t signal, int sig_op, int pe)   \
-{ (void) ctx; shmem_##N##_put_signal_nbi(dest, source, nelems, sig_addr, signal, sig_op, pe); }
+{ shmem_##N##_put_signal_nbi(dest, source, nelems, sig_addr, signal, sig_op, oshmpi_ctx_pe(ctx, pe)); }
 
 OSHMPI_RMA_TYPES(OSHMPI_DEF_PUT_SIGNAL)
 
@@ -66,11 +66,11 @@ void shmem_put##S##_signal_nbi(void *dest, const void *source, size_t nelems,   
 { oshmpi_put_signal(dest, source, nelems * (BYTES), sig_addr, signal, sig_op, pe, 1); }        \
 void shmem_ctx_put##S##_signal(shmem_ctx_t ctx, void *dest, const void *source, size_t nelems, \
                                uint64_t *sig_addr, uint64_t signal, int sig_op, int pe)        \
-{ (void) ctx; shmem_put##S##_signal(dest, source, nelems, sig_addr, signal, sig_op, pe); }     \
+{ shmem_put##S##_signal(dest, source, nelems, sig_addr, signal, sig_op, oshmpi_ctx_pe(ctx, pe)); }     \
 void shmem_ctx_put##S##_signal_nbi(shmem_ctx_t ctx, void *dest, const void *source,            \
                                    size_t nelems, uint64_t *sig_addr, uint64_t signal,         \
                                    int sig_op, int pe)                                         \
-{ (void) ctx; shmem_put##S##_signal_nbi(dest, source, nelems, sig_addr, signal, sig_op, pe); }
+{ shmem_put##S##_signal_nbi(dest, source, nelems, sig_addr, signal, sig_op, oshmpi_ctx_pe(ctx, pe)); }
 
 OSHMPI_DEF_PUT_SIGNAL_SIZED(mem, 1)
 OSHMPI_DEF_PUT_SIGNAL_SIZED(8, 1)
@@ -86,8 +86,7 @@ void shmem_signal_add(uint64_t *sig_addr, uint64_t signal, int pe)
 
 void shmem_ctx_signal_add(shmem_ctx_t ctx, uint64_t *sig_addr, uint64_t signal, int pe)
 {
-    (void) ctx;
-    oshmpi_add(OSHMPI_SIG_MPI_TYPE, sig_addr, &signal, pe);
+    oshmpi_add(OSHMPI_SIG_MPI_TYPE, sig_addr, &signal, oshmpi_ctx_pe(ctx, pe));
 }
 
 void shmem_signal_set(uint64_t *sig_addr, uint64_t signal, int pe)
@@ -97,8 +96,7 @@ void shmem_signal_set(uint64_t *sig_addr, uint64_t signal, int pe)
 
 void shmem_ctx_signal_set(shmem_ctx_t ctx, uint64_t *sig_addr, uint64_t signal, int pe)
 {
-    (void) ctx;
-    oshmpi_set(OSHMPI_SIG_MPI_TYPE, sig_addr, &signal, pe);
+    oshmpi_set(OSHMPI_SIG_MPI_TYPE, sig_addr, &signal, oshmpi_ctx_pe(ctx, pe));
 }
 
 uint64_t shmem_signal_fetch(const uint64_t *sig_addr)

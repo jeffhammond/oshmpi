@@ -30,6 +30,7 @@ check_PROGRAMS += tests/barrier_performance \
                   tests/test_team \
                   tests/test_team_coll \
                   tests/test_ctx \
+                  tests/test_ctx_signal \
                   tests/test_bigcount \
                   tests/test_bigcoll \
                   tests/test_bigbss \
@@ -68,6 +69,7 @@ TESTS += tests/barrier_performance \
          tests/test_team \
          tests/test_team_coll \
          tests/test_ctx \
+         tests/test_ctx_signal \
          tests/test_bigcount \
          tests/test_bigcoll \
          tests/test_bigbss \
@@ -112,6 +114,7 @@ tests_test_bigcount_LDADD = libshmem.la
 tests_test_bigcoll_LDADD = libshmem.la
 tests_test_bigbss_LDADD = libshmem.la
 tests_test_ctx_LDADD = libshmem.la
+tests_test_ctx_signal_LDADD = libshmem.la
 tests_test_env_parse_SOURCES = tests/test_env_parse.c
 tests_test_symsize_k_SOURCES = tests/test_symsize.c
 tests_test_symsize_k_CPPFLAGS = -DSZ='"300k"' -DWANT=307200
