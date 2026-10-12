@@ -133,19 +133,19 @@ tests_test_ctx_LDADD = libshmem.la
 tests_test_ctx_signal_LDADD = libshmem.la
 tests_test_env_parse_SOURCES = tests/test_env_parse.c
 tests_test_symsize_k_SOURCES = tests/test_symsize.c
-tests_test_symsize_k_CPPFLAGS = -DSZ='"300k"' -DWANT=307200
+tests_test_symsize_k_CPPFLAGS = $(AM_CPPFLAGS) -DSZ='"300k"' -DWANT=307200
 tests_test_symsize_k_LDADD = libshmem.la
 tests_test_symsize_frac_SOURCES = tests/test_symsize.c
-tests_test_symsize_frac_CPPFLAGS = -DSZ='"1.5m"' -DWANT=1572864
+tests_test_symsize_frac_CPPFLAGS = $(AM_CPPFLAGS) -DSZ='"1.5m"' -DWANT=1572864
 tests_test_symsize_frac_LDADD = libshmem.la
 tests_test_symsize_odd_SOURCES = tests/test_symsize.c
-tests_test_symsize_odd_CPPFLAGS = -DSZ='"100003"' -DWANT=100003
+tests_test_symsize_odd_CPPFLAGS = $(AM_CPPFLAGS) -DSZ='"100003"' -DWANT=100003
 tests_test_symsize_odd_LDADD = libshmem.la
 tests_test_symsize_legacy_SOURCES = tests/test_symsize.c
-tests_test_symsize_legacy_CPPFLAGS = -DENVNAME='"SMA_SYMMETRIC_SIZE"' -DSZ='"2M"' -DWANT=2097152
+tests_test_symsize_legacy_CPPFLAGS = $(AM_CPPFLAGS) -DENVNAME='"SMA_SYMMETRIC_SIZE"' -DSZ='"2M"' -DWANT=2097152
 tests_test_symsize_legacy_LDADD = libshmem.la
 tests_test_symsize_full_SOURCES = tests/test_symsize.c
-tests_test_symsize_full_CPPFLAGS = -DSZ='"2m"' -DWANT=2097152 -DEXHAUST
+tests_test_symsize_full_CPPFLAGS = $(AM_CPPFLAGS) -DSZ='"2m"' -DWANT=2097152 -DEXHAUST
 tests_test_symsize_full_LDADD = libshmem.la
 
 
@@ -154,18 +154,18 @@ tests_test_init_nested_LDADD = libshmem.la
 tests_test_shmem16_LDADD = libshmem.la
 tests_test_reinit_LDADD = libshmem.la
 tests_test_init_thread_single_SOURCES = tests/test_init_thread.c
-tests_test_init_thread_single_CPPFLAGS = -DREQ=0
+tests_test_init_thread_single_CPPFLAGS = $(AM_CPPFLAGS) -DREQ=0
 tests_test_init_thread_single_LDFLAGS = -pthread
 tests_test_init_thread_single_LDADD = libshmem.la
 tests_test_init_thread_funneled_SOURCES = tests/test_init_thread.c
-tests_test_init_thread_funneled_CPPFLAGS = -DREQ=1
+tests_test_init_thread_funneled_CPPFLAGS = $(AM_CPPFLAGS) -DREQ=1
 tests_test_init_thread_funneled_LDFLAGS = -pthread
 tests_test_init_thread_funneled_LDADD = libshmem.la
 tests_test_init_thread_serialized_SOURCES = tests/test_init_thread.c
-tests_test_init_thread_serialized_CPPFLAGS = -DREQ=2
+tests_test_init_thread_serialized_CPPFLAGS = $(AM_CPPFLAGS) -DREQ=2
 tests_test_init_thread_serialized_LDFLAGS = -pthread
 tests_test_init_thread_serialized_LDADD = libshmem.la
 tests_test_init_thread_multiple_SOURCES = tests/test_init_thread.c
-tests_test_init_thread_multiple_CPPFLAGS = -DREQ=3
+tests_test_init_thread_multiple_CPPFLAGS = $(AM_CPPFLAGS) -DREQ=3
 tests_test_init_thread_multiple_LDFLAGS = -pthread
 tests_test_init_thread_multiple_LDADD = libshmem.la
