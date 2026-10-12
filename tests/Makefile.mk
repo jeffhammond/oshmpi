@@ -29,6 +29,14 @@ check_PROGRAMS += tests/barrier_performance \
                   tests/test_signal \
                   tests/test_team \
                   tests/test_team_coll \
+                  tests/test_ctx \
+                  tests/test_bigcount \
+                  tests/test_env_parse \
+                  tests/test_symsize_k \
+                  tests/test_symsize_frac \
+                  tests/test_symsize_odd \
+                  tests/test_symsize_legacy \
+                  tests/test_symsize_full \
                   # end
 
 TESTS += tests/barrier_performance \
@@ -57,6 +65,14 @@ TESTS += tests/barrier_performance \
          tests/test_signal \
          tests/test_team \
          tests/test_team_coll \
+         tests/test_ctx \
+         tests/test_bigcount \
+         tests/test_env_parse \
+         tests/test_symsize_k \
+         tests/test_symsize_frac \
+         tests/test_symsize_odd \
+         tests/test_symsize_legacy \
+         tests/test_symsize_full \
          # end
 
 tests_barrier_performance_LDADD = libshmem.la
@@ -87,3 +103,22 @@ tests_test_amo_nbi_LDADD = libshmem.la
 tests_test_signal_LDADD = libshmem.la
 tests_test_team_LDADD = libshmem.la
 tests_test_team_coll_LDADD = libshmem.la
+
+tests_test_bigcount_LDADD = libshmem.la
+tests_test_ctx_LDADD = libshmem.la
+tests_test_env_parse_SOURCES = tests/test_env_parse.c
+tests_test_symsize_k_SOURCES = tests/test_symsize.c
+tests_test_symsize_k_CPPFLAGS = -DSZ='"300k"' -DWANT=307200
+tests_test_symsize_k_LDADD = libshmem.la
+tests_test_symsize_frac_SOURCES = tests/test_symsize.c
+tests_test_symsize_frac_CPPFLAGS = -DSZ='"1.5m"' -DWANT=1572864
+tests_test_symsize_frac_LDADD = libshmem.la
+tests_test_symsize_odd_SOURCES = tests/test_symsize.c
+tests_test_symsize_odd_CPPFLAGS = -DSZ='"100003"' -DWANT=100003
+tests_test_symsize_odd_LDADD = libshmem.la
+tests_test_symsize_legacy_SOURCES = tests/test_symsize.c
+tests_test_symsize_legacy_CPPFLAGS = -DENVNAME='"SMA_SYMMETRIC_SIZE"' -DSZ='"2M"' -DWANT=2097152
+tests_test_symsize_legacy_LDADD = libshmem.la
+tests_test_symsize_full_SOURCES = tests/test_symsize.c
+tests_test_symsize_full_CPPFLAGS = -DSZ='"2m"' -DWANT=2097152 -DEXHAUST
+tests_test_symsize_full_LDADD = libshmem.la

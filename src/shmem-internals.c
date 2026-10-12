@@ -2,6 +2,7 @@
 
 #include <strings.h>
 #include "shmem-internals.h"
+#include "oshmpi-env.h"
 
 /* Definitions of the globals declared extern in shmem-internals.h. */
 pthread_mutex_t oshmpi_rma_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -19,6 +20,10 @@ int     shmem_etext_size;
 void *  shmem_etext_base_ptr;
 MPI_Win shmem_sheap_win;
 long    shmem_sheap_size;
+
+/* Extra room in the heap window beyond the size requested, for allocator bookkeeping. */
+#define OSHMPI_STRIDED_CHUNK ((size_t) 1 << 30)   /* elements per MPI call in a strided transfer */
+#define OSHMPI_HEAP_PAD ((size_t) 8192)             /* a multiple of the page size; > 128*sizeof(size_t) */
 void *  shmem_sheap_base_ptr;
 mspace shmem_heap_mspace;
 #ifdef ENABLE_MPMD_SUPPORT
@@ -327,15 +332,12 @@ void oshmpi_initialize(int threading)
                 env_char = getenv("OOSHM_SYMMETRIC_HEAP_SIZE");
             }
             if (env_char!=NULL) {
-                long units = 1L;
-                if      ( NULL != strstr(env_char,"G") ) units = 1000000000L;
-                else if ( NULL != strstr(env_char,"M") ) units = 1000000L;
-                else if ( NULL != strstr(env_char,"K") ) units = 1000L;
-                else                                     units = 1L;
-
-                int num_count = strspn(env_char, "0123456789");
-                memset( &env_char[num_count], ' ', strlen(env_char)-num_count);
-                shmem_sheap_size = units * atol(env_char);
+                long size = 0;
+                if (oshmpi_parse_size(env_char, &size) != 0) {
+                    printf("OSHMPI: invalid symmetric heap size \"%s\"\n", env_char);
+                    oshmpi_abort(1, "Invalid value for SHMEM_SYMMETRIC_SIZE.");
+                }
+                shmem_sheap_size = size;
             }
         }
         /* There is a way to eliminate this extra broadcast, but Jeff is lazy. */
@@ -365,6 +367,14 @@ void oshmpi_initialize(int threading)
 #endif
             MPI_Bcast( &shmem_sheap_size, 1, MPI_LONG, 0, SHMEM_COMM_WORLD );
         }
+        /* Round the heap up to whole pages.  When the PEs of a node share one memory segment
+         * the library lays their windows out one after another, and a size that is not a
+         * multiple of the allocator's alignment would leave later PEs with a differently
+         * aligned base, and so the same allocation at a different offset in each PE. */
+        {
+            const long page = 4096;
+            shmem_sheap_size = (shmem_sheap_size + page - 1) / page * page;
+        }
         if (shmem_world_rank==0) {
             printf("OSHMPI symmetric heap size is %ld\n",shmem_sheap_size);
         }
@@ -388,7 +398,7 @@ void oshmpi_initialize(int threading)
 
         {
             MPI_Info_set(sheap_info, "alloc_shm", "true");
-            int rc = MPI_Win_allocate((MPI_Aint)(shmem_sheap_size + 128*sizeof(size_t)), 1 /* disp_unit */, sheap_info,
+            int rc = MPI_Win_allocate((MPI_Aint)(shmem_sheap_size + OSHMPI_HEAP_PAD), 1 /* disp_unit */, sheap_info,
                                       SHMEM_COMM_WORLD, &shmem_sheap_base_ptr, &shmem_sheap_win);
             if (rc!=MPI_SUCCESS) {
                 char errmsg[MPI_MAX_ERROR_STRING];
@@ -400,11 +410,21 @@ void oshmpi_initialize(int threading)
         }
         MPI_Win_lock_all(MPI_MODE_NOCHECK /* use 0 instead if things break */, shmem_sheap_win);
 
+        /* The allocator lays out the heap relative to the window base, so every PE's base must
+         * have the same alignment or the same allocation lands at different offsets. */
+        {
+            long align = (long) ((uintptr_t) shmem_sheap_base_ptr % 64), amin, amax;
+            MPI_Allreduce(&align, &amin, 1, MPI_LONG, MPI_MIN, SHMEM_COMM_WORLD);
+            MPI_Allreduce(&align, &amax, 1, MPI_LONG, MPI_MAX, SHMEM_COMM_WORLD);
+            if (amin != amax) oshmpi_abort(1, "The MPI library gave PEs symmetric heap windows with different alignments.");
+        }
+
         /* dlmalloc mspace constructor.
          * locked may not need to be 0 if SHMEM makes no multithreaded access... */
-	/* Part (less than 128*sizeof(size_t) bytes) of this space is used for bookkeeping, 
-	 * so the capacity must be at least this large */
-	shmem_sheap_size += 128*sizeof(size_t);
+	/* Part of this space is used for dlmalloc's bookkeeping (the mspace state, less than
+	 * 128*sizeof(size_t) bytes, and chunk headers and alignment), which is why the heap is
+	 * a little larger than requested: an allocation of the requested size must succeed. */
+	shmem_sheap_size += OSHMPI_HEAP_PAD;
         oshmpi_direct_init(shmem_sheap_win);
 #if SHMEM_DEBUG > 5
         printf("[%d] shmem_sheap_base_ptr=%p\n", shmem_world_rank, shmem_sheap_base_ptr);
@@ -416,6 +436,13 @@ void oshmpi_initialize(int threading)
 #endif
         shmem_heap_mspace = create_mspace_with_base(shmem_sheap_base_ptr, shmem_sheap_size,
                                                     (shmem_thread_provided == MPI_THREAD_MULTIPLE) /* locked */);
+        /* The heap is a fixed region.  When it cannot satisfy a request, dlmalloc must report
+         * failure; left alone it would mmap a large request, which is not symmetric memory
+         * and cannot be the target of RMA.  */
+        mspace_track_large_chunks(shmem_heap_mspace, 1);
+        /* ... and when it is out of room dlmalloc would also add a new segment with mmap.
+         * Capping the footprint at what the mspace has now forbids that. */
+        mspace_set_footprint_limit(shmem_heap_mspace, mspace_footprint(shmem_heap_mspace));
 
 	shmem_etext_base_ptr = (void*) get_etext();
         unsigned long long_etext_size   = get_end() - (unsigned long)shmem_etext_base_ptr;
@@ -662,7 +689,7 @@ void oshmpi_put(MPI_Datatype mpi_type, void *target, const void *source, size_t 
                 pe, (MPI_Aint)win_offset, count, tmp_type, /* target */
                 win));
 #endif
-        if ( unlikely(len>(size_t)INT32_MAX) ) {
+        if ( unlikely(len>=(size_t)INT32_MAX) ) {
             MPI_Type_free(&tmp_type);
         }
         OSHMPI_MPI_RMA(MPI_Win_flush_local(pe, win));
@@ -721,7 +748,7 @@ void oshmpi_get(MPI_Datatype mpi_type, void *target, const void *source, size_t 
                 pe, (MPI_Aint)win_offset, count, tmp_type, /* remote */
                 win));
 #endif
-        if ( unlikely(len>(size_t)INT32_MAX) ) {
+        if ( unlikely(len>=(size_t)INT32_MAX) ) {
             MPI_Type_free(&tmp_type);
         }
         OSHMPI_MPI_RMA(MPI_Win_flush_local(pe, win));
@@ -780,7 +807,7 @@ void oshmpi_put_nbi(MPI_Datatype mpi_type, void *target, const void *source, siz
                 pe, (MPI_Aint)win_offset, count, tmp_type, /* target */
                 win));
 #endif
-        if ( unlikely(len>(size_t)INT32_MAX) ) {
+        if ( unlikely(len>=(size_t)INT32_MAX) ) {
             MPI_Type_free(&tmp_type);
         }
     }
@@ -838,7 +865,7 @@ void oshmpi_get_nbi(MPI_Datatype mpi_type, void *target, const void *source, siz
                 pe, (MPI_Aint)win_offset, count, tmp_type, /* remote */
                 win));
 #endif
-        if ( unlikely(len>(size_t)INT32_MAX) ) {
+        if ( unlikely(len>=(size_t)INT32_MAX) ) {
             MPI_Type_free(&tmp_type);
         }
     }
@@ -850,19 +877,25 @@ void oshmpi_put_strided(MPI_Datatype mpi_type, void *target, const void *source,
 {
     if (len == 0) return; /* zero-length transfers are no-ops; pointers need not be valid */
 
+    /* An MPI count is an int, so a very long strided transfer goes in pieces. */
+    if (len > OSHMPI_STRIDED_CHUNK) {
+        ptrdiff_t es = (ptrdiff_t) oshmpi_type_size(mpi_type);
+        for (size_t done = 0; done < len; done += OSHMPI_STRIDED_CHUNK) {
+            size_t n = (len - done < OSHMPI_STRIDED_CHUNK) ? len - done : OSHMPI_STRIDED_CHUNK;
+            oshmpi_put_strided(mpi_type, (char *) target + (ptrdiff_t) done * target_ptrdiff * es,
+                              (const char *) source + (ptrdiff_t) done * source_ptrdiff * es,
+                              target_ptrdiff, source_ptrdiff, n, pe);
+        }
+        return;
+    }
+
 #if SHMEM_DEBUG>3
     printf("[%d] oshmpi_put_strided: type=%d, target=%p, source=%p, len=%zu, pe=%d \n", 
                     shmem_world_rank, mpi_type, target, source, len, pe);
     fflush(stdout);
 #endif
 
-    int count = 0;
-    if ( likely(len<(size_t)INT32_MAX) ) { /* need second check if size_t is signed */
-        count = len;
-    } else {
-        /* TODO generate derived type ala BigMPI */
-        oshmpi_abort(len%INT32_MAX, "oshmpi_put_strided: count exceeds the range of a 32b integer");
-    }
+    int count = (int) len;
 
     {
         void *dp = oshmpi_direct_ptr(target, pe);
@@ -927,19 +960,25 @@ void oshmpi_get_strided(MPI_Datatype mpi_type, void *target, const void *source,
 {
     if (len == 0) return; /* zero-length transfers are no-ops; pointers need not be valid */
 
+    /* An MPI count is an int, so a very long strided transfer goes in pieces. */
+    if (len > OSHMPI_STRIDED_CHUNK) {
+        ptrdiff_t es = (ptrdiff_t) oshmpi_type_size(mpi_type);
+        for (size_t done = 0; done < len; done += OSHMPI_STRIDED_CHUNK) {
+            size_t n = (len - done < OSHMPI_STRIDED_CHUNK) ? len - done : OSHMPI_STRIDED_CHUNK;
+            oshmpi_get_strided(mpi_type, (char *) target + (ptrdiff_t) done * target_ptrdiff * es,
+                              (const char *) source + (ptrdiff_t) done * source_ptrdiff * es,
+                              target_ptrdiff, source_ptrdiff, n, pe);
+        }
+        return;
+    }
+
 #if SHMEM_DEBUG>3
     printf("[%d] oshmpi_get_strided: type=%d, target=%p, source=%p, len=%zu, pe=%d \n", 
                     shmem_world_rank, mpi_type, target, source, len, pe);
     fflush(stdout);
 #endif
 
-    int count = 0;
-    if ( likely(len<(size_t)INT32_MAX) ) { /* need second check if size_t is signed */
-        count = len;
-    } else {
-        /* TODO generate derived type ala BigMPI */
-        oshmpi_abort(len%INT32_MAX, "oshmpi_get_strided: count exceeds the range of a 32b integer");
-    }
+    int count = (int) len;
 
     {
         void *dp = oshmpi_direct_ptr(source, pe);
@@ -1419,7 +1458,7 @@ void oshmpi_coll(enum shmem_coll_type_e coll, MPI_Datatype mpi_type, MPI_Op redu
             break;
     }
 
-    if ( unlikely(len>(size_t)INT32_MAX) ) {
+    if ( unlikely(len>=(size_t)INT32_MAX) ) {
         MPI_Type_free(&tmp_type);
     }
 

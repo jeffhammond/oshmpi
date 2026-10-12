@@ -21,7 +21,7 @@ Requirements: a C11 compiler (checked by `configure`) and MPI-3.
 | `shmem_TYPE_atomic_*` including bitwise `and/or/xor` | 1.4 | Old AMO names remain |
 | `shmem_TYPE_test`, `shmem_sync`, `shmem_sync_all`, `SHMEM_SYNC_SIZE` | 1.4 | `sync` publishes local stores but does not complete remote updates, as specified |
 | C11 type-generic bindings (RMA, AMO, `wait_until`, `test`, with optional context argument) | 1.3/1.4 | `tools/gen-c11-generics.py`; selects on basic C types |
-| `SHMEM_SYMMETRIC_SIZE`, `SHMEM_VERSION`, `SHMEM_INFO` | 1.4 | `SHMEM_DEBUG` accepted and ignored; `SMA_*` and other vendor names still read |
+| `SHMEM_SYMMETRIC_SIZE`, `SHMEM_VERSION`, `SHMEM_INFO` | 1.4 | Size accepts floating-point values and k/m/g/t suffixes (powers of 1024) as in 1.5, rounds up, and an invalid value aborts; the heap holds at least that many bytes. `SHMEM_DEBUG` accepted and ignored; `SMA_*` and other vendor names still read, with the same syntax |
 | `shmem_pcontrol` | 1.5 | no-op |
 | `shmem_<T>_wait_until_{all,any,some}` and `_vector` forms, `shmem_<T>_test_{all,any,some}` and `_vector` forms | 1.5 | `tools/gen-shmem15-sync.py` generates the C11 bindings; the any/some scans rotate their start so repeated `test_any` calls reach every satisfied element |
 | Nonblocking atomics `shmem_<T>_atomic_{fetch,swap,compare_swap,fetch_inc,fetch_add,fetch_and,fetch_or,fetch_xor}_nbi`, with context versions and C11 bindings | 1.5 | Complete inside the call, which the specification allows |
