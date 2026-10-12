@@ -2,6 +2,7 @@
  * shmem_pe_quiet, and the clarified edge cases of team split and test_all. */
 #include <complex.h>
 #include <shmem.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -140,6 +141,54 @@ static void ib_sized(void)
     shmem_free(d);
 }
 
+
+/* ibput/ibget of every size, plain and with a context */
+#define IB_SIZE(S, T)                                                                              \
+{                                                                                                  \
+    T *d = shmem_malloc(32 * sizeof(T));                                                           \
+    T loc[32], back[32];                                                                           \
+    int next = (me + 1) % np, prev = (me + np - 1) % np;                                           \
+    for (int round = 0; round < 2; round++) {                                                      \
+        for (int i = 0; i < 32; i++) { loc[i] = (T) (me * 3 + i + 1); d[i] = 0; back[i] = 0; }     \
+        shmem_barrier_all();                                                                       \
+        if (round) shmem_ctx_ibput##S(SHMEM_CTX_DEFAULT, d, loc, 5, 4, 2, 3, next);                \
+        else shmem_ibput##S(d, loc, 5, 4, 2, 3, next);                                             \
+        shmem_barrier_all();                                                                       \
+        for (int b = 0; b < 3; b++) for (int e = 0; e < 2; e++)                                    \
+            CHECK(d[5 * b + e] == (T) (prev * 3 + 4 * b + e + 1), "ibput" #S);                     \
+        if (round) shmem_ctx_ibget##S(SHMEM_CTX_DEFAULT, back, d, 4, 5, 2, 3, me);                 \
+        else shmem_ibget##S(back, d, 4, 5, 2, 3, me);                                              \
+        for (int b = 0; b < 3; b++) for (int e = 0; e < 2; e++)                                    \
+            CHECK(back[4 * b + e] == (T) (prev * 3 + 4 * b + e + 1), "ibget" #S);                  \
+        shmem_barrier_all();                                                                       \
+    }                                                                                              \
+    shmem_free(d);                                                                                 \
+}
+
+static void ib_all_sizes(void)
+{
+    IB_SIZE(8, uint8_t)
+    IB_SIZE(16, uint16_t)
+    IB_SIZE(32, uint32_t)
+    IB_SIZE(64, uint64_t)
+    IB_SIZE(128, long double)
+}
+
+/* the shmemx names of signal set and add */
+static void x_signal(void)
+{
+    uint64_t *sig = shmem_calloc(2, sizeof(uint64_t));
+    int next = (me + 1) % np, prev = (me + np - 1) % np;
+    shmem_barrier_all();
+    shmemx_signal_set(&sig[0], 40 + me, next);
+    shmemx_signal_add(&sig[1], 2, 0);
+    shmem_barrier_all();
+    CHECK(sig[0] == (uint64_t) (40 + prev), "shmemx_signal_set");
+    if (me == 0) CHECK(sig[1] == (uint64_t) (2 * np), "shmemx_signal_add");
+    shmem_barrier_all();
+    shmem_free(sig);
+}
+
 int main(void)
 {
     int init = -1;
@@ -191,6 +240,8 @@ int main(void)
         if (shmem_ctx_create(0, &ctx) == 0) { ib_int(ctx); ib_double(ctx); shmem_ctx_destroy(ctx); }
     }
     ib_sized();
+    ib_all_sizes();
+    x_signal();
 
     /* C11 generic ibput/ibget, default context and explicit context */
     {

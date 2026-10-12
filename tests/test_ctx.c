@@ -42,6 +42,8 @@ static int same(const unsigned char *p, size_t n, int who, int salt)
     return 1;
 }
 
+static void typed_battery(struct cx *c);
+
 static void battery(struct cx *c)
 {
     shmem_ctx_t x = c->ctx;
@@ -319,6 +321,145 @@ static void battery(struct cx *c)
         for (int round = 1; round <= 20; round++) shmem_sync_all();
     }
     shmem_barrier_all();
+    typed_battery(c);
+}
+
+
+/* ---- every type.  Each PE writes to the next team member and reads back from it, so the data
+ * of one PE passes through the translation to a world PE twice.  CALL builds the call: the
+ * context form, or, on the default context, the plain form of the same routine. */
+
+#define CX(op, N, ...)  shmem_ctx_##N##_##op(x, __VA_ARGS__)
+#define PL(op, N, ...)  shmem_##N##_##op(__VA_ARGS__)
+#define TVAL(who, i)    ((((who) * 13 + (i) * 5) % 100) + 1)
+
+#define TYPED_RMA(N, T, CALL)                                                                      \
+{                                                                                                  \
+    T *R = (T *) (hb + 1024);                       /* five 256-byte regions */                    \
+    T loc[8], back[8];                                                                             \
+    memset(hb, 0, BUF);                                                                            \
+    shmem_barrier_all();                                                                           \
+    if (c->member) {                                                                               \
+        for (int i = 0; i < 8; i++) loc[i] = (T) TVAL(me, i);                                      \
+        CALL(put, N, R, loc, 8, next);                                                             \
+        CALL(put_nbi, N, (T *) (hb + 1280), loc, 8, next);                                         \
+        CALL(iput, N, (T *) (hb + 1536), loc, 2, 1, 4, next);                                      \
+        CALL(ibput, N, (T *) (hb + 1792), loc, 3, 2, 2, 2, next);                                  \
+        CALL(p, N, (T *) (hb + 2048), (T) TVAL(me, 7), next);                                      \
+        shmem_ctx_quiet(x);                                                                        \
+    }                                                                                              \
+    shmem_barrier_all();                                                                           \
+    if (c->member) {                                                                               \
+        int from = c->world_of_prev;                                                               \
+        T *R1 = (T *) (hb + 1280), *R2 = (T *) (hb + 1536), *R3 = (T *) (hb + 1792);               \
+        for (int i = 0; i < 8; i++) CHECK(R[i] == (T) TVAL(from, i), #N " put");                   \
+        for (int i = 0; i < 8; i++) CHECK(R1[i] == (T) TVAL(from, i), #N " put_nbi");              \
+        for (int k = 0; k < 4; k++) CHECK(R2[2 * k] == (T) TVAL(from, k), #N " iput");             \
+        for (int b = 0; b < 2; b++) for (int e = 0; e < 2; e++)                                    \
+            CHECK(R3[3 * b + e] == (T) TVAL(from, 2 * b + e), #N " ibput");                        \
+        CHECK(*(T *) (hb + 2048) == (T) TVAL(from, 7), #N " p");                                   \
+        /* the next member's regions hold what this PE wrote */                                    \
+        memset(back, 0, sizeof back);                                                              \
+        CALL(get, N, back, R, 8, next);                                                            \
+        for (int i = 0; i < 8; i++) CHECK(back[i] == (T) TVAL(me, i), #N " get");                  \
+        memset(back, 0, sizeof back);                                                              \
+        CALL(get_nbi, N, back, R1, 8, next);                                                       \
+        shmem_ctx_quiet(x);                                                                        \
+        for (int i = 0; i < 8; i++) CHECK(back[i] == (T) TVAL(me, i), #N " get_nbi");              \
+        memset(back, 0, sizeof back);                                                              \
+        CALL(iget, N, back, R2, 1, 2, 4, next);                                                    \
+        for (int k = 0; k < 4; k++) CHECK(back[k] == (T) TVAL(me, k), #N " iget");                 \
+        memset(back, 0, sizeof back);                                                              \
+        CALL(ibget, N, back, R3, 2, 3, 2, 2, next);                                                \
+        for (int b = 0; b < 2; b++) for (int e = 0; e < 2; e++)                                    \
+            CHECK(back[2 * b + e] == (T) TVAL(me, 2 * b + e), #N " ibget");                        \
+        CHECK(CALL(g, N, (T *) (hb + 2048), next) == (T) TVAL(me, 7), #N " g");                    \
+    }                                                                                              \
+    shmem_barrier_all();                                                                           \
+}
+
+#define TYPED_AMO(N, T, CALL)                                                                      \
+{                                                                                                  \
+    T *A = (T *) (hb + 2304);                                                                      \
+    memset(hb, 0, BUF);                                                                            \
+    shmem_barrier_all();                                                                           \
+    if (c->member) {                                                                               \
+        CALL(atomic_set, N, &A[0], (T) 21, next);                                                  \
+        CHECK(CALL(atomic_fetch, N, &A[0], next) == (T) 21, #N " atomic fetch");                   \
+        CHECK(CALL(atomic_swap, N, &A[1], (T) 5, next) == (T) 0, #N " atomic swap");               \
+        CHECK(CALL(atomic_compare_swap, N, &A[2], (T) 0, (T) 9, next) == (T) 0, #N " cswap hit");  \
+        CHECK(CALL(atomic_compare_swap, N, &A[2], (T) 0, (T) 11, next) == (T) 9, #N " cswap miss");\
+        CALL(atomic_inc, N, &A[3], next);                                                          \
+        CHECK(CALL(atomic_fetch_inc, N, &A[3], next) == (T) 1, #N " fetch_inc");                   \
+        CALL(atomic_add, N, &A[4], (T) 3, next);                                                   \
+        CHECK(CALL(atomic_fetch_add, N, &A[4], (T) 4, next) == (T) 3, #N " fetch_add");            \
+        shmem_ctx_quiet(x);                                                                        \
+    }                                                                                              \
+    shmem_barrier_all();                                                                           \
+    if (c->member) {                                                                               \
+        CHECK(A[0] == (T) 21 && A[1] == (T) 5 && A[2] == (T) 9, #N " set, swap, cswap results");   \
+        CHECK(A[3] == (T) 2 && A[4] == (T) 7, #N " inc and add results");                          \
+    }                                                                                              \
+    shmem_barrier_all();                                                                           \
+}
+
+#define TYPED_BIT(N, T, CALL)                                                                      \
+{                                                                                                  \
+    T *A = (T *) (hb + 2304);                                                                      \
+    memset(hb, 0, BUF);                                                                            \
+    shmem_barrier_all();                                                                           \
+    if (c->member) {                                                                               \
+        CALL(atomic_or, N, &A[5], (T) 0x3, next);                                                  \
+        CHECK(CALL(atomic_fetch_or, N, &A[5], (T) 0x4, next) == (T) 0x3, #N " fetch_or");          \
+        CALL(atomic_xor, N, &A[5], (T) 0x1, next);                                                 \
+        CHECK(CALL(atomic_fetch_xor, N, &A[5], (T) 0x10, next) == (T) 0x6, #N " fetch_xor");       \
+        CALL(atomic_and, N, &A[5], (T) 0x14, next);                                                \
+        CHECK(CALL(atomic_fetch_and, N, &A[5], (T) 0x4, next) == (T) 0x14, #N " fetch_and");       \
+        shmem_ctx_quiet(x);                                                                        \
+    }                                                                                              \
+    shmem_barrier_all();                                                                           \
+    if (c->member) CHECK(A[5] == (T) 0x4, #N " bitwise results");                                  \
+    shmem_barrier_all();                                                                           \
+}
+
+#define TYPED_EXT(N, T, CALL)                                                                      \
+{                                                                                                  \
+    T *A = (T *) (hb + 2304);                                                                      \
+    memset(hb, 0, BUF);                                                                            \
+    shmem_barrier_all();                                                                           \
+    if (c->member) {                                                                               \
+        CALL(atomic_set, N, &A[0], (T) 2.5, next);                                                 \
+        CHECK(CALL(atomic_fetch, N, &A[0], next) == (T) 2.5, #N " atomic fetch");                  \
+        CHECK(CALL(atomic_swap, N, &A[0], (T) 4.5, next) == (T) 2.5, #N " atomic swap");           \
+        shmem_ctx_quiet(x);                                                                        \
+    }                                                                                              \
+    shmem_barrier_all();                                                                           \
+    if (c->member) CHECK(A[0] == (T) 4.5, #N " swap result");                                      \
+    shmem_barrier_all();                                                                           \
+}
+
+static void typed_battery(struct cx *c)
+{
+    shmem_ctx_t x = c->ctx;
+    int next = (c->tm + 1) % c->tn;
+#define R_CX(N, T)  TYPED_RMA(N, T, CX)
+#define R_PL(N, T)  TYPED_RMA(N, T, PL)
+#define A_CX(N, T)  TYPED_AMO(N, T, CX)
+#define A_PL(N, T)  TYPED_AMO(N, T, PL)
+#define B_CX(N, T)  TYPED_BIT(N, T, CX)
+#define B_PL(N, T)  TYPED_BIT(N, T, PL)
+#define E_CX(N, T)  TYPED_EXT(N, T, CX)
+#define E_PL(N, T)  TYPED_EXT(N, T, PL)
+    OSHMPI_RMA_TYPES(R_CX)
+    OSHMPI_AMO_TYPES(A_CX)
+    OSHMPI_BITWISE_AMO_TYPES(B_CX)
+    OSHMPI_EXT_AMO_ONLY_TYPES(E_CX)
+    if (x == SHMEM_CTX_DEFAULT) {          /* the same routines without a context argument */
+        OSHMPI_RMA_TYPES(R_PL)
+        OSHMPI_AMO_TYPES(A_PL)
+        OSHMPI_BITWISE_AMO_TYPES(B_PL)
+        OSHMPI_EXT_AMO_ONLY_TYPES(E_PL)
+    }
 }
 
 int main(void)

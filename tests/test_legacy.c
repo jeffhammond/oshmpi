@@ -51,6 +51,199 @@ static long lock;                                       /* data-segment lock */
         shmem_free(v);                                                                          \
     } while (0)
 
+
+/* ---- the legacy routines on every type they exist for ---------------------------------- */
+
+#define LVAL(who, i) ((((who) * 13 + (i) * 5) % 90) + 1)
+
+/* active-set reductions over all PEs; pWrk and pSync are static, so they are symmetric */
+#define LBIT(OP, N, T, FOLD)                                                                       \
+    do {                                                                                           \
+        static T s[4], d[4], w[16];                                                                \
+        static long ps[SHMEM_REDUCE_SYNC_SIZE + 8];                                                \
+        for (int i = 0; i < SHMEM_REDUCE_SYNC_SIZE + 8; i++) ps[i] = SHMEM_SYNC_VALUE;             \
+        for (int i = 0; i < 4; i++) s[i] = (T) ((~(1 << ((me + i) % 7))) & 0x7F);                  \
+        shmem_barrier_all();                                                                       \
+        shmem_##N##_##OP##_to_all(d, s, 4, 0, 0, np, w, ps);                                       \
+        for (int i = 0; i < 4; i++) {                                                              \
+            T e = (T) ((~(1 << (i % 7))) & 0x7F);                                                  \
+            for (int q = 1; q < np; q++) { T x = (T) ((~(1 << ((q + i) % 7))) & 0x7F); e = FOLD; } \
+            CHECK(d[i] == e, #N " " #OP "_to_all");                                                \
+        }                                                                                          \
+        shmem_barrier_all();                                                                       \
+    } while (0)
+
+#define LRED(OP, N, T, INIT, FOLD)                                                                 \
+    do {                                                                                           \
+        static T s[4], d[4], w[16];                                                                \
+        static long ps[SHMEM_REDUCE_SYNC_SIZE + 8];                                                \
+        for (int i = 0; i < SHMEM_REDUCE_SYNC_SIZE + 8; i++) ps[i] = SHMEM_SYNC_VALUE;             \
+        for (int i = 0; i < 4; i++) s[i] = (T) INIT(me, i);                                        \
+        shmem_barrier_all();                                                                       \
+        shmem_##N##_##OP##_to_all(d, s, 4, 0, 0, np, w, ps);                                       \
+        for (int i = 0; i < 4; i++) {                                                              \
+            T e = (T) INIT(0, i);                                                                  \
+            for (int q = 1; q < np; q++) { T x = (T) INIT(q, i); e = FOLD; }                       \
+            CHECK(d[i] == e, #N " " #OP "_to_all");                                                \
+        }                                                                                          \
+        shmem_barrier_all();                                                                       \
+    } while (0)
+
+#define I_MM(who, i)    ((((who) * 7 + (i) * 3) % 11) + 1)
+#define I_SUM(who, i)   ((who) + (i) + 1)
+#define I_PROD(who, i)  ((who) == 0 ? (i) + 2 : (who) == 1 ? 3 : 1)
+
+#define LEG_INT(N, T)                                                                              \
+    LBIT(and, N, T, (T) (e & x)); LBIT(or, N, T, (T) (e | x)); LBIT(xor, N, T, (T) (e ^ x));       \
+    LRED(max, N, T, I_MM, (x > e ? x : e)); LRED(min, N, T, I_MM, (x < e ? x : e));                \
+    LRED(sum, N, T, I_SUM, (T) (e + x)); LRED(prod, N, T, I_PROD, (T) (e * x));
+#define LEG_REAL(N, T)                                                                             \
+    LRED(max, N, T, I_MM, (x > e ? x : e)); LRED(min, N, T, I_MM, (x < e ? x : e));                \
+    LRED(sum, N, T, I_SUM, (T) (e + x)); LRED(prod, N, T, I_PROD, (T) (e * x));
+
+/* 32- and 64-bit collectives; a separate pSync each */
+#define LCOLL(B, T)                                                                                \
+    do {                                                                                           \
+        static T s[16], d[8 * 16], b[8];                                                            \
+        static long p1[64], p2[64], p3[64], p4[64];                                                \
+        for (int i = 0; i < 64; i++) p1[i] = p2[i] = p3[i] = p4[i] = SHMEM_SYNC_VALUE;             \
+        for (int i = 0; i < 8; i++) { s[i] = (T) LVAL(me, i); b[i] = (T) (me == 0 ? LVAL(0, i) : 0); } \
+        for (int i = 0; i < 8 * 16; i++) d[i] = 0;                                                 \
+        shmem_barrier_all();                                                                       \
+        shmem_broadcast##B(d, b, 8, 0, 0, 0, np, p1);                                              \
+        if (me != 0) for (int i = 0; i < 8; i++) CHECK(d[i] == (T) LVAL(0, i), "broadcast" #B);    \
+        shmem_barrier_all();                                                                       \
+        for (int i = 0; i < 8 * 16; i++) d[i] = 0;                                                 \
+        shmem_fcollect##B(d, s, 3, 0, 0, np, p2);                                                  \
+        for (int q = 0; q < np; q++) for (int i = 0; i < 3; i++)                                   \
+            CHECK(d[q * 3 + i] == (T) LVAL(q, i), "fcollect" #B);                                  \
+        shmem_barrier_all();                                                                       \
+        for (int i = 0; i < 8 * 16; i++) d[i] = 0;                                                 \
+        shmem_collect##B(d, s, (size_t) (me % 3 + 1), 0, 0, np, p3);                               \
+        { int at = 0;                                                                              \
+          for (int q = 0; q < np; q++) for (int i = 0; i < q % 3 + 1; i++)                         \
+              CHECK(d[at++] == (T) LVAL(q, i), "collect" #B); }                                    \
+        shmem_barrier_all();                                                                       \
+        for (int l = 0; l < np; l++) s[l] = (T) LVAL(me, l);                              \
+        for (int i = 0; i < 16; i++) d[i] = 0;                                                     \
+        shmem_alltoall##B(d, s, 1, 0, 0, np, p4);                                                  \
+        for (int k = 0; k < np; k++) CHECK(d[k] == (T) LVAL(k, me), "alltoall" #B);       \
+        shmem_barrier_all();                                                                       \
+    } while (0)
+
+#define LWAIT(N, T)                                                                                \
+    do {                                                                                           \
+        static T v, u;                                                                             \
+        v = 0; u = 0;                                                                              \
+        shmem_barrier_all();                                                                       \
+        shmem_##N##_p(&v, 1, next);                                                                \
+        shmem_##N##_wait(&v, 0);                    /* returns once v != 0 */                      \
+        CHECK(v == 1, #N "_wait");                                                                 \
+        shmem_##N##_p(&u, 5, next);                                                                \
+        shmem_##N##_wait_until(&u, SHMEM_CMP_GE, 5);                                               \
+        CHECK(u == 5, #N "_wait_until");                                                           \
+        shmem_barrier_all();                                                                       \
+    } while (0)
+
+#define LSIZED(S, T)                                                                               \
+    do {                                                                                           \
+        static T d[16];                                                                            \
+        T loc[16], back[16];                                                                       \
+        for (int i = 0; i < 16; i++) { loc[i] = (T) LVAL(me, i); d[i] = 0; back[i] = 0; }          \
+        shmem_barrier_all();                                                                       \
+        shmem_put##S(d, loc, 4, next);                                                             \
+        shmem_put##S##_nbi(d + 4, loc, 4, next);                                                   \
+        shmem_quiet();                                                                             \
+        shmem_barrier_all();                                                                       \
+        for (int i = 0; i < 4; i++)                                                                \
+            CHECK(d[i] == (T) LVAL(prev, i) && d[4 + i] == (T) LVAL(prev, i), "put" #S);           \
+        shmem_get##S(back, d, 4, next);                                                            \
+        shmem_get##S##_nbi(back + 4, d + 4, 4, next);                                              \
+        shmem_quiet();                                                                             \
+        for (int i = 0; i < 4; i++)                                                                \
+            CHECK(back[i] == (T) LVAL(me, i) && back[4 + i] == (T) LVAL(me, i), "get" #S);         \
+        shmem_barrier_all();                                                                       \
+    } while (0)
+
+#define LSIZED_STRIDED(S, T)                                                                       \
+    do {                                                                                           \
+        static T d[16];                                                                            \
+        T loc[16], back[16];                                                                       \
+        for (int i = 0; i < 16; i++) { loc[i] = (T) LVAL(me, i); d[i] = 0; back[i] = 0; }          \
+        shmem_barrier_all();                                                                       \
+        shmem_iput##S(d, loc, 2, 1, 4, next);                                                      \
+        shmem_barrier_all();                                                                       \
+        for (int k = 0; k < 4; k++) CHECK(d[2 * k] == (T) LVAL(prev, k), "iput" #S);               \
+        shmem_iget##S(back, d, 1, 2, 4, next);                                                     \
+        for (int k = 0; k < 4; k++) CHECK(back[k] == (T) LVAL(me, k), "iget" #S);                  \
+        shmem_barrier_all();                                                                       \
+    } while (0)
+
+static void legacy_types(void)
+{
+    int next = (me + 1) % np, prev = (me + np - 1) % np;
+    LEG_INT(short, short) LEG_INT(int, int) LEG_INT(long, long) LEG_INT(longlong, long long)
+    LEG_REAL(float, float) LEG_REAL(double, double) LEG_REAL(longdouble, long double)
+    LCOLL(32, uint32_t);
+    LCOLL(64, uint64_t);
+    LWAIT(short, short); LWAIT(int, int); LWAIT(long, long); LWAIT(longlong, long long);
+    LSIZED(8, uint8_t); LSIZED(16, uint16_t); LSIZED(32, uint32_t); LSIZED(64, uint64_t);
+    LSIZED(128, long double);
+    LSIZED_STRIDED(8, uint8_t); LSIZED_STRIDED(16, uint16_t); LSIZED_STRIDED(32, uint32_t);
+    LSIZED_STRIDED(64, uint64_t); LSIZED_STRIDED(128, long double);
+
+    /* the untyped shmem_wait and shmem_wait_until (long) */
+    {
+        static long v, u;
+        v = 0; u = 0;
+        shmem_barrier_all();
+        shmem_long_p(&v, 1, next);
+        shmem_wait(&v, 0);
+        CHECK(v == 1, "shmem_wait");
+        shmem_long_p(&u, 4, next);
+        shmem_wait_until(&u, SHMEM_CMP_EQ, 4);
+        CHECK(u == 4, "shmem_wait_until");
+        shmem_barrier_all();
+    }
+
+    /* aligned and resized allocations, the cache stubs, pcontrol, shmem_ptr */
+    {
+        void *a = shmemalign(256, 1000);
+        CHECK(a != NULL && ((uintptr_t) a % 256) == 0, "shmemalign alignment");
+        char *r = shrealloc(a, 5000);
+        CHECK(r != NULL, "shrealloc");
+        shmem_free(r);
+        shmem_set_cache_inv(); shmem_clear_cache_inv();
+        int tgt = 0; shmem_set_cache_line_inv(&tgt); shmem_clear_cache_line_inv(&tgt);
+        shmem_pcontrol(0);
+        shmem_pcontrol(1);
+        shmem_barrier_all();
+    }
+}
+
+/* shmem_<T>_wait_until and shmem_<T>_test on every type that has them */
+#define LSYNC(N, T)                                                                                \
+    do {                                                                                           \
+        static T v;                                                                                \
+        v = 0;                                                                                     \
+        shmem_barrier_all();                                                                       \
+        CHECK(shmem_##N##_test(&v, SHMEM_CMP_EQ, (T) 1) == 0, #N "_test of an unset variable");    \
+        shmem_barrier_all();                                                                       \
+        shmem_##N##_p(&v, (T) 1, next);                                                            \
+        shmem_##N##_wait_until(&v, SHMEM_CMP_EQ, (T) 1);                                           \
+        CHECK(shmem_##N##_test(&v, SHMEM_CMP_GE, (T) 1) != 0, #N "_test of a set variable");       \
+        shmem_barrier_all();                                                                       \
+    } while (0)
+
+static void sync_types(void)
+{
+    int next = (me + 1) % np;
+    LSYNC(short, short); LSYNC(ushort, unsigned short); LSYNC(int, int); LSYNC(uint, unsigned int);
+    LSYNC(long, long); LSYNC(ulong, unsigned long); LSYNC(longlong, long long);
+    LSYNC(ulonglong, unsigned long long); LSYNC(int32, int32_t); LSYNC(int64, int64_t);
+    LSYNC(uint32, uint32_t); LSYNC(uint64, uint64_t); LSYNC(size, size_t); LSYNC(ptrdiff, ptrdiff_t);
+}
+
 int main(void)
 {
     shmem_init();
@@ -251,6 +444,9 @@ int main(void)
         shmem_free(counter);
         shmem_free(hl);
     }
+
+    legacy_types();
+    sync_types();
 
     shmem_barrier_all();
     printf("[%d] test_legacy: %s\n", me, errs ? "FAILED" : "OK");

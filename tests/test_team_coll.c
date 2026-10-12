@@ -1,4 +1,4 @@
-/* Team collectives: broadcast, collect, fcollect, alltoall, alltoalls and every reduction on
+/* Team collectives: broadcast, collect, fcollect, alltoall, alltoalls and every reduction and the 1.6 scans on
  * every type, over the world team, a team that excludes PEs, the shared team and 2-D axis
  * teams, with buffers in the symmetric heap and in the data segment. */
 #include <shmem.h>
@@ -237,6 +237,71 @@ static void run_movement(shmem_team_t team)
     CHECK(shmem_team_sync(team) == 0, "team_sync rc");
 }
 
+
+/* ---- every type: the movement collectives and the scans.  The values are small integers so
+ * that they are exact in every type, and they depend on all of the indices, so that a wrong
+ * block or a wrong type size shows. */
+
+#define VAL(a, b, c) ((((a) * 31 + (b) * 17 + (c) * 7) % 100) + 1)
+
+#define TYPED_MOVE(N, T)                                                                           \
+{                                                                                                  \
+    T *s = SRC(T), *d = DST(T);                                                                    \
+    int root = tn - 1;                                                                             \
+    for (int i = 0; i < 5; i++) { s[i] = (T) (tr == root ? VAL(root, i, 1) : 0); d[i] = (T) 0; }   \
+    CHECK(shmem_##N##_broadcast(team, d, s, 5, root) == 0, #N " broadcast rc");                    \
+    for (int i = 0; i < 5; i++) CHECK(d[i] == (T) VAL(root, i, 1), #N " broadcast");               \
+    for (int i = 0; i < 3; i++) s[i] = (T) VAL(tr, i, 2);                                          \
+    for (int i = 0; i < 3 * tn; i++) d[i] = (T) 0;                                                 \
+    CHECK(shmem_##N##_fcollect(team, d, s, 3) == 0, #N " fcollect rc");                            \
+    for (int q = 0; q < tn; q++) for (int i = 0; i < 3; i++)                                       \
+        CHECK(d[q * 3 + i] == (T) VAL(q, i, 2), #N " fcollect");                                   \
+    for (int i = 0; i < 3 * tn; i++) d[i] = (T) 0;                                                 \
+    CHECK(shmem_##N##_collect(team, d, s, (size_t) (tr % 3)) == 0, #N " collect rc");              \
+    { int at = 0;                                                                                  \
+      for (int q = 0; q < tn; q++) for (int i = 0; i < q % 3; i++)                                 \
+          CHECK(d[at++] == (T) VAL(q, i, 2), #N " collect"); }                                     \
+    for (int l = 0; l < tn; l++) for (int j = 0; j < 2; j++) s[l * 2 + j] = (T) VAL(tr, l, j + 3); \
+    for (int i = 0; i < 2 * tn; i++) d[i] = (T) 0;                                                 \
+    CHECK(shmem_##N##_alltoall(team, d, s, 2) == 0, #N " alltoall rc");                            \
+    for (int k = 0; k < tn; k++) for (int j = 0; j < 2; j++)                                       \
+        CHECK(d[k * 2 + j] == (T) VAL(k, tr, j + 3), #N " alltoall");                              \
+    for (int i = 0; i < tn * 6; i++) s[i] = (T) 0;                                                 \
+    for (int i = 0; i < tn * 4; i++) d[i] = (T) 0;                                                 \
+    for (int l = 0; l < tn; l++) for (int j = 0; j < 2; j++) s[l * 6 + j * 3] = (T) VAL(tr, l, j + 5); \
+    CHECK(shmem_##N##_alltoalls(team, d, s, 2, 3, 2) == 0, #N " alltoalls rc");                    \
+    for (int k = 0; k < tn; k++) for (int j = 0; j < 2; j++)                                       \
+        CHECK(d[k * 4 + j * 2] == (T) VAL(k, tr, j + 5), #N " alltoalls");                         \
+}
+
+#define TYPED_SCAN(N, T)                                                                           \
+{                                                                                                  \
+    T *s = SRC(T), *d = DST(T);                                                                    \
+    for (int i = 0; i < 3; i++) { s[i] = (T) ((tr + i) % 4 + 1); d[i] = (T) 77; }                   \
+    CHECK(shmem_##N##_sum_inscan(team, d, s, 3) == 0, #N " inscan rc");                            \
+    for (int i = 0; i < 3; i++) { int e = 0; for (int q = 0; q <= tr; q++) e += (q + i) % 4 + 1;   \
+                                  CHECK(d[i] == (T) e, #N " inscan"); }                            \
+    CHECK(shmem_##N##_sum_exscan(team, d, s, 3) == 0, #N " exscan rc");                            \
+    for (int i = 0; i < 3; i++) { int e = 0; for (int q = 0; q < tr; q++) e += (q + i) % 4 + 1;    \
+                                  CHECK(d[i] == (T) e, #N " exscan"); }                            \
+}
+
+static void run_typed(shmem_team_t team)
+{
+#define TM(N, T) TYPED_MOVE(N, T)
+    OSHMPI_RMA_TYPES(TM)
+#define TS(N, T) TYPED_SCAN(N, T)
+    OSHMPI_TEAM_RED_SUMPROD_TYPES(TS)
+    /* the C11 forms of the scans */
+    { int *s = SRC(int), *d = DST(int);
+      s[0] = tr + 1;
+      CHECK(shmem_sum_inscan(team, d, s, 1) == 0 && d[0] == (tr + 1) * (tr + 2) / 2, "generic inscan");
+      CHECK(shmem_sum_exscan(team, d, s, 1) == 0 && d[0] == tr * (tr + 1) / 2, "generic exscan");
+      /* in place */
+      d[0] = tr + 1;
+      CHECK(shmem_int_sum_inscan(team, d, d, 1) == 0 && d[0] == (tr + 1) * (tr + 2) / 2, "in-place inscan"); }
+}
+
 static void run_team(shmem_team_t team)
 {
     if (team == SHMEM_TEAM_INVALID) return;
@@ -246,6 +311,7 @@ static void run_team(shmem_team_t team)
         buf = variant ? heap_buf : seg_buf;     /* data segment, then symmetric heap */
         run_movement(team);
         run_reductions(team);
+        run_typed(team);
     }
 }
 
