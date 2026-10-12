@@ -52,7 +52,7 @@ extern char      shmem_procname[MPI_MAX_PROCESSOR_NAME];
 
 /* TODO probably want to make these 5 things into a struct typedef */
 extern MPI_Win shmem_etext_win;
-extern int     shmem_etext_size;
+extern long    shmem_etext_size;
 extern void *  shmem_etext_base_ptr;
 
 extern MPI_Win shmem_sheap_win;
@@ -165,6 +165,7 @@ static inline void oshmpi_set_psync(int count, long value, long * pSync)
         pSync[i] = value;
 }
 
+void oshmpi_collect_bytes(MPI_Comm comm, void * target, const void * source, size_t bytes);
 void oshmpi_coll(enum shmem_coll_type_e coll, MPI_Datatype mpi_type, MPI_Op reduce_op,
                  void * target, const void * source,
                  ptrdiff_t target_ptrdiff, ptrdiff_t source_ptrdiff,

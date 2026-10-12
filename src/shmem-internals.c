@@ -16,7 +16,7 @@ char      shmem_procname[MPI_MAX_PROCESSOR_NAME];
 int       shmem_sheap_direct;
 char **   shmem_sheap_peer_base;
 MPI_Win shmem_etext_win;
-int     shmem_etext_size;
+long    shmem_etext_size;
 void *  shmem_etext_base_ptr;
 MPI_Win shmem_sheap_win;
 long    shmem_sheap_size;
@@ -104,7 +104,7 @@ extern char      shmem_procname[MPI_MAX_PROCESSOR_NAME];
 
 /* TODO probably want to make these 5 things into a struct typedef */
 extern MPI_Win shmem_etext_win;
-extern int     shmem_etext_size;
+extern long    shmem_etext_size;
 extern void *  shmem_etext_base_ptr;
 
 extern MPI_Win shmem_sheap_win;
@@ -446,15 +446,14 @@ void oshmpi_initialize(int threading)
 
 	shmem_etext_base_ptr = (void*) get_etext();
         unsigned long long_etext_size   = get_end() - (unsigned long)shmem_etext_base_ptr;
-        assert(long_etext_size<(unsigned long)INT32_MAX);
-        shmem_etext_size = (int)long_etext_size;
+        shmem_etext_size = (long)long_etext_size;
 
 #if defined(HAVE_APPLE_MAC) && SHMEM_DEBUG > 5
         printf("[%d] get_etext()       = %p \n", shmem_world_rank, (void*)get_etext() );
         printf("[%d] get_edata()       = %p \n", shmem_world_rank, (void*)get_edata() );
         printf("[%d] get_end()         = %p \n", shmem_world_rank, (void*)get_end()   );
         //printf("[%d] long_etext_size   = %lu \n", shmem_world_rank, long_etext_size );
-        printf("[%d] shmem_etext_size  = %d  \n", shmem_world_rank, shmem_etext_size );
+        printf("[%d] shmem_etext_size  = %ld  \n", shmem_world_rank, shmem_etext_size );
         //printf("[%d] my_etext_base_ptr = %p  \n", shmem_world_rank, my_etext_base_ptr );
         fflush(stdout);
 #endif
@@ -895,7 +894,7 @@ void oshmpi_put_strided(MPI_Datatype mpi_type, void *target, const void *source,
     fflush(stdout);
 #endif
 
-    int count = (int) len;
+    size_t count = len;
 
     {
         void *dp = oshmpi_direct_ptr(target, pe);
@@ -915,19 +914,17 @@ void oshmpi_put_strided(MPI_Datatype mpi_type, void *target, const void *source,
 
     MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
     {
-        assert( (ptrdiff_t)INT32_MIN<target_ptrdiff && target_ptrdiff<(ptrdiff_t)INT32_MAX );
-        assert( (ptrdiff_t)INT32_MIN<source_ptrdiff && source_ptrdiff<(ptrdiff_t)INT32_MAX );
-
-        int target_stride = (int) target_ptrdiff;
-        int source_stride = (int) source_ptrdiff;
+        /* byte strides, so neither the stride nor the span is limited to an int */
+        ptrdiff_t target_stride = target_ptrdiff;
+        ptrdiff_t source_stride = source_ptrdiff;
 
         MPI_Datatype source_type;
-        MPI_Type_vector(count, 1, source_stride, mpi_type, &source_type);
+        OSHMPI_Type_strided_x(count, source_stride, mpi_type, &source_type);
         MPI_Type_commit(&source_type);
 
         MPI_Datatype target_type;
         if (target_stride!=source_stride) {
-            MPI_Type_vector(count, 1, target_stride, mpi_type, &target_type);
+            OSHMPI_Type_strided_x(count, target_stride, mpi_type, &target_type);
             MPI_Type_commit(&target_type);
         } else {
             target_type = source_type;
@@ -978,7 +975,7 @@ void oshmpi_get_strided(MPI_Datatype mpi_type, void *target, const void *source,
     fflush(stdout);
 #endif
 
-    int count = (int) len;
+    size_t count = len;
 
     {
         void *dp = oshmpi_direct_ptr(source, pe);
@@ -998,19 +995,17 @@ void oshmpi_get_strided(MPI_Datatype mpi_type, void *target, const void *source,
 
     MPI_Win win = (win_id==SHMEM_SHEAP_WINDOW) ? shmem_sheap_win : shmem_etext_win;
     {
-        assert( (ptrdiff_t)INT32_MIN<target_ptrdiff && target_ptrdiff<(ptrdiff_t)INT32_MAX );
-        assert( (ptrdiff_t)INT32_MIN<source_ptrdiff && source_ptrdiff<(ptrdiff_t)INT32_MAX );
-
-        int target_stride = (int) target_ptrdiff;
-        int source_stride = (int) source_ptrdiff;
+        /* byte strides, so neither the stride nor the span is limited to an int */
+        ptrdiff_t target_stride = target_ptrdiff;
+        ptrdiff_t source_stride = source_ptrdiff;
 
         MPI_Datatype source_type;
-        MPI_Type_vector(count, 1, source_stride, mpi_type, &source_type);
+        OSHMPI_Type_strided_x(count, source_stride, mpi_type, &source_type);
         MPI_Type_commit(&source_type);
 
         MPI_Datatype target_type;
         if (target_stride!=source_stride) {
-            MPI_Type_vector(count, 1, target_stride, mpi_type, &target_type);
+            OSHMPI_Type_strided_x(count, target_stride, mpi_type, &target_type);
             MPI_Type_commit(&target_type);
         } else {
             target_type = source_type;
@@ -1351,6 +1346,64 @@ static inline void oshmpi_release_comm(int pe_start, int pe_logs, int pe_size, /
     return;
 }
 
+/* The datatype and count to move 'len' elements of mpi_type, when 'total' is the most that
+ * any one MPI call over it will move: a plain count if that fits in an int, otherwise one
+ * element of a derived type.  *big says whether the type has to be freed. */
+static MPI_Datatype oshmpi_count_type(size_t len, size_t total, MPI_Datatype mpi_type, int * count, int * big)
+{
+    if ( likely(total<(size_t)INT32_MAX) ) {
+        *count = (int) len;
+        *big = 0;
+        return mpi_type;
+    }
+    MPI_Datatype tmp_type;
+    *count = 1;
+    *big = 1;
+    MPIX_Type_contiguous_x(len, mpi_type, &tmp_type);
+    MPI_Type_commit(&tmp_type);
+    return tmp_type;
+}
+
+/* Allgatherv of 'bytes' bytes from each rank; ranks may differ.  The total is whatever fits in
+ * memory; MPI counts and displacements are ints, so when it does not fit in one the pieces go
+ * one rank at a time as broadcasts, themselves split to fit. */
+void oshmpi_collect_bytes(MPI_Comm comm, void * target, const void * source, size_t bytes)
+{
+    int n, me;
+    MPI_Comm_size(comm, &n);
+    MPI_Comm_rank(comm, &me);
+    uint64_t mine = bytes;
+    uint64_t * all = malloc(n*sizeof(uint64_t)); assert(all!=NULL);
+    MPI_Allgather(&mine, 1, MPI_UINT64_T, all, 1, MPI_UINT64_T, comm);
+    size_t total = 0;
+    for (int i=0; i<n; i++) total += all[i];
+
+    if ( likely(total<(size_t)INT32_MAX) ) {
+        int * rcounts = malloc(n*sizeof(int)); assert(rcounts!=NULL);
+        int * rdispls = malloc(n*sizeof(int)); assert(rdispls!=NULL);
+        for (int i=0; i<n; i++) {
+            rcounts[i] = (int) all[i];
+            rdispls[i] = (i==0) ? 0 : rdispls[i-1] + rcounts[i-1];
+        }
+        MPI_Allgatherv(source, (int) bytes, MPI_BYTE, target, rcounts, rdispls, MPI_BYTE, comm);
+        free(rdispls);
+        free(rcounts);
+    } else {
+        const size_t chunk = (size_t)1<<30;
+        size_t displ = 0;
+        for (int i=0; i<n; i++) {
+            char * piece = (char *) target + displ;
+            if (i==me) memmove(piece, source, bytes);
+            for (size_t off=0; off<all[i]; off+=chunk) {
+                size_t m = (all[i]-off < chunk) ? all[i]-off : chunk;
+                MPI_Bcast(piece+off, (int) m, MPI_BYTE, i, comm);
+            }
+            displ += all[i];
+        }
+    }
+    free(all);
+}
+
 void oshmpi_coll(enum shmem_coll_type_e coll, MPI_Datatype mpi_type, MPI_Op reduce_op,
                   void * target, const void * source,
                   ptrdiff_t target_ptrdiff, ptrdiff_t source_ptrdiff, /* <--- ALLTOALLS only */
@@ -1363,17 +1416,6 @@ void oshmpi_coll(enum shmem_coll_type_e coll, MPI_Datatype mpi_type, MPI_Op redu
     oshmpi_acquire_comm(pe_start, pe_logs, pe_size, &comm,
                          pe_root, &broot);
 
-    int count = 0;
-    MPI_Datatype tmp_type;
-    if ( likely(len<(size_t)INT32_MAX) ) {
-        count = len;
-        tmp_type = mpi_type;
-    } else {
-        count = 1;
-        MPIX_Type_contiguous_x(len, mpi_type, &tmp_type);
-        MPI_Type_commit(&tmp_type);
-    }
-
     switch (coll) {
         case SHMEM_BARRIER:
             {
@@ -1382,61 +1424,58 @@ void oshmpi_coll(enum shmem_coll_type_e coll, MPI_Datatype mpi_type, MPI_Op redu
             break;
         case SHMEM_BROADCAST:
             {
+                int count, big;
+                MPI_Datatype tmp_type = oshmpi_count_type(len, len, mpi_type, &count, &big);
                 /* For bcast, MPI uses one buffer but SHMEM uses two. */
                 /* From the OpenSHMEM 1.0 specification:
                  * "The data is not copied to the target address on the PE specified by PE_root." */
                 /* pe_root is relative to the active set; the root's world rank is: */
                 MPI_Bcast(shmem_world_rank==(pe_start + pe_root*(1<<pe_logs)) ? (void*) source : target,
                          count, tmp_type, broot, comm);
+                if (big) MPI_Type_free(&tmp_type);
 	    }
             break;
         case SHMEM_FCOLLECT:
             {
+                /* the receive side holds pe_size pieces, and some MPIs count it in an int */
+                int count, big;
+                MPI_Datatype tmp_type = oshmpi_count_type(len, len*(size_t)pe_size, mpi_type, &count, &big);
                 MPI_Allgather(source, count, tmp_type, target, count, tmp_type, comm);
+                if (big) MPI_Type_free(&tmp_type);
             }
             break;
         case SHMEM_COLLECT:
             {
-                int * rcounts = malloc(pe_size*sizeof(int)); assert(rcounts!=NULL);
-                int * rdispls = malloc(pe_size*sizeof(int)); assert(rdispls!=NULL);
-                MPI_Allgather(&count, 1, MPI_INT, rcounts, 1, MPI_INT, comm);
-                rdispls[0] = 0;
-                for (int i=1; i<pe_size; i++) {
-                    rdispls[i] = rdispls[i-1] + rcounts[i-1];
-                }
-                MPI_Allgatherv(source, count, tmp_type, target, rcounts, rdispls, tmp_type, comm);
-                free(rdispls);
-                free(rcounts);
+                int size;
+                MPI_Type_size(mpi_type, &size);
+                oshmpi_collect_bytes(comm, target, source, len*(size_t)size);
             }
             break;
         case SHMEM_ALLTOALL:
             {
+                int count, big;
+                MPI_Datatype tmp_type = oshmpi_count_type(len, len*(size_t)pe_size, mpi_type, &count, &big);
                 MPI_Alltoall(source, count, tmp_type, target, count, tmp_type, comm);
+                if (big) MPI_Type_free(&tmp_type);
             }
             break;
         case SHMEM_ALLTOALLS:
             {
-                assert( (ptrdiff_t)INT32_MIN<target_ptrdiff && target_ptrdiff<(ptrdiff_t)INT32_MAX );
-                assert( (ptrdiff_t)INT32_MIN<source_ptrdiff && source_ptrdiff<(ptrdiff_t)INT32_MAX );
-
-                int target_stride = (int) target_ptrdiff;
-                int source_stride = (int) source_ptrdiff;
-
-                /* PE k's block for PE l is the nelems elements starting at element
-                 * l*nelems*sst of the source (and lands at k*nelems*dst in the target):
-                 * one strided block, whose extent must span nelems*stride elements
+                /* PE k's block for PE l is the len elements starting at element
+                 * l*len*sst of the source (and lands at k*len*dst in the target):
+                 * one strided block, whose extent must span len*stride elements
                  * so that consecutive blocks are adjacent in the array. */
                 MPI_Aint lb, elem_extent;
                 MPI_Type_get_extent(mpi_type, &lb, &elem_extent);
 
                 MPI_Datatype source_type, target_type, tmp;
-                MPI_Type_vector(count, 1, source_stride, mpi_type, &tmp);
-                MPI_Type_create_resized(tmp, 0, (MPI_Aint)count * source_stride * elem_extent, &source_type);
+                OSHMPI_Type_strided_x(len, source_ptrdiff, mpi_type, &tmp);
+                MPI_Type_create_resized(tmp, 0, (MPI_Aint)len * source_ptrdiff * elem_extent, &source_type);
                 MPI_Type_commit(&source_type);
                 MPI_Type_free(&tmp);
 
-                MPI_Type_vector(count, 1, target_stride, mpi_type, &tmp);
-                MPI_Type_create_resized(tmp, 0, (MPI_Aint)count * target_stride * elem_extent, &target_type);
+                OSHMPI_Type_strided_x(len, target_ptrdiff, mpi_type, &tmp);
+                MPI_Type_create_resized(tmp, 0, (MPI_Aint)len * target_ptrdiff * elem_extent, &target_type);
                 MPI_Type_commit(&target_type);
                 MPI_Type_free(&tmp);
 
@@ -1450,16 +1489,24 @@ void oshmpi_coll(enum shmem_coll_type_e coll, MPI_Datatype mpi_type, MPI_Op redu
             {
                 /* From the OpenSHMEM 1.0 specification:
                 "[The] source and target may be the same array, but they must not be overlapping arrays." */
-                MPI_Allreduce((source==target) ? MPI_IN_PLACE : source, target, count, tmp_type, reduce_op, comm);
+                /* A reduction operation is only defined on predefined types, so a long one
+                 * goes in pieces rather than as one element of a derived type. */
+                int size;
+                MPI_Type_size(mpi_type, &size);
+                const size_t chunk = (size_t)1<<28;
+                size_t done = 0;
+                do {
+                    size_t n = (len-done < chunk) ? len-done : chunk;
+                    char * d = (char *) target + done*(size_t)size;
+                    const char * s = (const char *) source + done*(size_t)size;
+                    MPI_Allreduce((source==target) ? MPI_IN_PLACE : (void *) s, d, (int) n, mpi_type, reduce_op, comm);
+                    done += n;
+                } while (done < len);
             }
             break;
         default:
             oshmpi_abort(coll, "Unsupported collective type.");
             break;
-    }
-
-    if ( unlikely(len>=(size_t)INT32_MAX) ) {
-        MPI_Type_free(&tmp_type);
     }
 
     oshmpi_release_comm(pe_start, pe_logs, pe_size, &comm);

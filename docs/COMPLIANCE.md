@@ -53,6 +53,9 @@ the list is in `tests/third_party/STATUS.md`.
   and osc/rdma hang with concurrent RMA from several threads.  Operations on the symmetric heap with direct access enabled do
   not touch MPI at all.  Open MPI 5.x osc/ucx can still crash when a thread exits while others issue RMA (fixed or rarer in 6.0).
 - `shmem_quiet`/`shmem_fence` flush all outstanding RMA on the PE, which is stronger than the spec requires.
+- Counts and sizes are not limited to an MPI `int`.  Contiguous RMA, strided RMA (including strides over 2^31 elements),
+  data-segment windows over 2 GiB and every collective, team or legacy, move more than 2^31-1 elements or bytes, using
+  derived datatypes or pieces.  Opt-in tests (`OSHMPI_TEST_LARGE=1` or `2`): `test_bigcount`, `test_bigcoll`, `test_bigbss`.
 - Static/global symmetric data on macOS uses the main executable's `__DATA` segment.
 
 ## Known test failures (not believed to be OSHMPI bugs)

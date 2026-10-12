@@ -31,6 +31,8 @@ check_PROGRAMS += tests/barrier_performance \
                   tests/test_team_coll \
                   tests/test_ctx \
                   tests/test_bigcount \
+                  tests/test_bigcoll \
+                  tests/test_bigbss \
                   tests/test_env_parse \
                   tests/test_symsize_k \
                   tests/test_symsize_frac \
@@ -67,6 +69,8 @@ TESTS += tests/barrier_performance \
          tests/test_team_coll \
          tests/test_ctx \
          tests/test_bigcount \
+         tests/test_bigcoll \
+         tests/test_bigbss \
          tests/test_env_parse \
          tests/test_symsize_k \
          tests/test_symsize_frac \
@@ -105,6 +109,8 @@ tests_test_team_LDADD = libshmem.la
 tests_test_team_coll_LDADD = libshmem.la
 
 tests_test_bigcount_LDADD = libshmem.la
+tests_test_bigcoll_LDADD = libshmem.la
+tests_test_bigbss_LDADD = libshmem.la
 tests_test_ctx_LDADD = libshmem.la
 tests_test_env_parse_SOURCES = tests/test_env_parse.c
 tests_test_symsize_k_SOURCES = tests/test_symsize.c

@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "shmem-internals.h"
+#include "type_contiguous_x.h"
 
 struct oshmpi_team_s {
     MPI_Comm comm;
@@ -300,7 +301,18 @@ int shmem_team_sync(shmem_team_t team)
     return 0;
 }
 
-static int bytes_ok(size_t bytes) { return bytes <= (size_t) INT_MAX; }
+/* An MPI count is an int.  Moving 'bytes' bytes per rank, when MPI may count 'span' bytes in
+ * total, takes a plain count if that fits and otherwise one element of a derived type. */
+static MPI_Datatype bytes_type(size_t bytes, size_t span, int * count, int * big)
+{
+    if (span < (size_t) INT_MAX) { *count = (int) bytes; *big = 0; return MPI_BYTE; }
+    MPI_Datatype t;
+    *count = 1;
+    *big = 1;
+    MPIX_Type_contiguous_x(bytes, MPI_BYTE, &t);
+    MPI_Type_commit(&t);
+    return t;
+}
 
 static int bcast_bytes(shmem_team_t team, void * dest, const void * source, size_t bytes, int root)
 {
@@ -320,9 +332,12 @@ static int bcast_bytes(shmem_team_t team, void * dest, const void * source, size
 static int fcollect_bytes(shmem_team_t team, void * dest, const void * source, size_t bytes)
 {
     oshmpi_team_init();
-    if (team == SHMEM_TEAM_INVALID || !bytes_ok(bytes) || !bytes_ok(bytes * (size_t) team->size)) return 1;
+    if (team == SHMEM_TEAM_INVALID) return 1;
     coll_begin();
-    MPI_Allgather(source, (int) bytes, MPI_BYTE, dest, (int) bytes, MPI_BYTE, team->comm);
+    int count, big;
+    MPI_Datatype t = bytes_type(bytes, bytes * (size_t) team->size, &count, &big);
+    MPI_Allgather(source, count, t, dest, count, t, team->comm);
+    if (big) MPI_Type_free(&t);
     coll_end();
     return 0;
 }
@@ -330,28 +345,22 @@ static int fcollect_bytes(shmem_team_t team, void * dest, const void * source, s
 static int collect_bytes(shmem_team_t team, void * dest, const void * source, size_t bytes)
 {
     oshmpi_team_init();
-    if (team == SHMEM_TEAM_INVALID || !bytes_ok(bytes)) return 1;
+    if (team == SHMEM_TEAM_INVALID) return 1;
     coll_begin();
-    int n = team->size, mine = (int) bytes, rc = 0;
-    int * counts = malloc(n * sizeof(int));
-    int * displs = malloc(n * sizeof(int));
-    MPI_Allgather(&mine, 1, MPI_INT, counts, 1, MPI_INT, team->comm);
-    size_t total = 0;
-    for (int i = 0; i < n; i++) { displs[i] = (int) total; total += (size_t) counts[i]; }
-    if (!bytes_ok(total)) rc = 1;   /* every PE sees the same counts, so every PE agrees */
-    else MPI_Allgatherv(source, mine, MPI_BYTE, dest, counts, displs, MPI_BYTE, team->comm);
-    free(displs);
-    free(counts);
+    oshmpi_collect_bytes(team->comm, dest, source, bytes);
     coll_end();
-    return rc;
+    return 0;
 }
 
 static int alltoall_bytes(shmem_team_t team, void * dest, const void * source, size_t bytes)
 {
     oshmpi_team_init();
-    if (team == SHMEM_TEAM_INVALID || !bytes_ok(bytes) || !bytes_ok(bytes * (size_t) team->size)) return 1;
+    if (team == SHMEM_TEAM_INVALID) return 1;
     coll_begin();
-    MPI_Alltoall(source, (int) bytes, MPI_BYTE, dest, (int) bytes, MPI_BYTE, team->comm);
+    int count, big;
+    MPI_Datatype t = bytes_type(bytes, bytes * (size_t) team->size, &count, &big);
+    MPI_Alltoall(source, count, t, dest, count, t, team->comm);
+    if (big) MPI_Type_free(&t);
     coll_end();
     return 0;
 }
@@ -363,22 +372,20 @@ static int alltoalls_bytes(shmem_team_t team, void * dest, const void * source, 
                            ptrdiff_t sst, size_t nelems, size_t esz)
 {
     oshmpi_team_init();
-    if (team == SHMEM_TEAM_INVALID || dst < 1 || sst < 1 || nelems > (size_t) INT_MAX ||
-        dst > INT_MAX || sst > INT_MAX || !bytes_ok(esz))
+    if (team == SHMEM_TEAM_INVALID || dst < 1 || sst < 1 || esz > (size_t) INT_MAX)
         return 1;
     coll_begin();
-    int count = (int) nelems;
     MPI_Datatype elem, tmp, stype, dtype;
     MPI_Type_contiguous((int) esz, MPI_BYTE, &elem);
     MPI_Type_commit(&elem);
 
-    MPI_Type_vector(count, 1, (int) sst, elem, &tmp);
-    MPI_Type_create_resized(tmp, 0, (MPI_Aint) count * sst * (MPI_Aint) esz, &stype);
+    OSHMPI_Type_strided_x(nelems, sst, elem, &tmp);
+    MPI_Type_create_resized(tmp, 0, (MPI_Aint) nelems * sst * (MPI_Aint) esz, &stype);
     MPI_Type_commit(&stype);
     MPI_Type_free(&tmp);
 
-    MPI_Type_vector(count, 1, (int) dst, elem, &tmp);
-    MPI_Type_create_resized(tmp, 0, (MPI_Aint) count * dst * (MPI_Aint) esz, &dtype);
+    OSHMPI_Type_strided_x(nelems, dst, elem, &tmp);
+    MPI_Type_create_resized(tmp, 0, (MPI_Aint) nelems * dst * (MPI_Aint) esz, &dtype);
     MPI_Type_commit(&dtype);
     MPI_Type_free(&tmp);
 
