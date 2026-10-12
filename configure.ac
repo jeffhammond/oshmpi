@@ -17,11 +17,27 @@ AM_PROG_CC_C_O
 AC_C_CONST
 AC_C_RESTRICT
 
-## Check for C99
-AC_PROG_CC_C99
-if test "$ac_cv_prog_cc_c99" = "no" ; then
-  AC_ERROR([C99 not supported by the compiler])
-fi
+## OSHMPI requires a C11 compiler (type-generic macros, _Noreturn, ...).
+AC_MSG_CHECKING([whether the C compiler supports C11])
+AC_DEFUN([OSHMPI_C11_TEST], [AC_LANG_SOURCE([[
+#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L
+#error not C11
+#endif
+_Noreturn void f(void);
+_Static_assert(sizeof(int) >= 4, "int");
+int main(void) { int x = 0; return _Generic(x, int: 0, default: 1); }
+]])])
+AC_COMPILE_IFELSE([OSHMPI_C11_TEST], [AC_MSG_RESULT([yes])], [
+  AC_MSG_RESULT([no])
+  oshmpi_save_CC="$CC"
+  CC="$CC -std=gnu11"
+  AC_MSG_CHECKING([whether the C compiler supports C11 with -std=gnu11])
+  AC_COMPILE_IFELSE([OSHMPI_C11_TEST], [AC_MSG_RESULT([yes])], [
+    AC_MSG_RESULT([no])
+    CC="$oshmpi_save_CC"
+    AC_MSG_ERROR([a C11 compiler is required; check CC and any -std= option in CFLAGS])
+  ])
+])
 
 # automake 1.12 seems to require this, but automake 1.11 doesn't recognize it
 # must come before LT_INIT
@@ -110,17 +126,6 @@ fi
 #
 # OSHMPI-specific feature control
 #
-
-# SMP opts
-AC_ARG_ENABLE(smp-optimizations,
-              AC_HELP_STRING([--enable-smp-optimizations],[Enable SMP optimizations (i.e. MPI bypass)]),
-              [ smp_optimizations_enabled=yes ],
-              [ smp_optimizations_enabled=no ])
-AC_MSG_CHECKING(whether SMP optimizations (i.e. MPI bypass) are enabled)
-AC_MSG_RESULT($smp_optimizations_enabled)
-if test "$smp_optimizations_enabled" = "yes"; then
-   AC_DEFINE(ENABLE_SMP_OPTIMIZATIONS,1,[Defined when whether SMP optimizations (i.e. MPI bypass) are enabled])
-fi
 
 # MPMD
 AC_ARG_ENABLE(mpmd-support,

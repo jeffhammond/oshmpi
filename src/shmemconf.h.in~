@@ -1,0 +1,265 @@
+/* src/shmemconf.h.in.  Generated from configure.ac by autoheader.  */
+
+/* -*- Mode: C; c-basic-offset:4 ; -*- */
+/*
+ *  (C) 2013 by Argonne National Laboratory.
+ *      See COPYRIGHT in top-level directory.
+ */
+#ifndef _SHMEMCONF_H_
+#define _SHMEMCONF_H_
+
+
+/* Defined when MPI subcommunicator caching is enabled */
+#undef ENABLE_COMM_CACHING
+
+/* Defined when MPMD support is enabled */
+#undef ENABLE_MPMD_SUPPORT
+
+/* Defined when RMA ordering is enabled */
+#undef ENABLE_RMA_ORDERING
+
+/* Defined when SHMEM memory management routine barriers are enabled */
+#undef ENABLE_SHEAP_BARRIERS
+
+/* Define to enable ARMCI block-strided extension. */
+#undef EXTENSION_ARMCI_STRIDED
+
+/* Define to enable Intel counting put extension. */
+#undef EXTENSION_COUNTING_PUT
+
+/* Define to enable CraySHMEM initialize/finalize. */
+#undef EXTENSION_CRAY_INIT
+
+/* Define to enable Cray thread-safety extension. */
+#undef EXTENSION_CRAY_THREADS
+
+/* Define to enable ORNL finalize/abort extension. */
+#undef EXTENSION_FINAL_ABORT
+
+/* Define to enable MPI subcommunicator ensemble extension. */
+#undef EXTENSION_INIT_SUBCOMM
+
+/* Define to enable Intel contexts extension. */
+#undef EXTENSION_INTEL_CONTEXTS
+
+/* Define to enable ORNL active-set extension. */
+#undef EXTENSION_ORNL_ASET
+
+/* Define to enable ORNL non-blocking collectives extension. */
+#undef EXTENSION_ORNL_NBCOLL
+
+/* Define to enable ORNL non-blocking RMA/AMO extension. */
+#undef EXTENSION_ORNL_NBRMA
+
+/* Define on Apple OSX. */
+#undef HAVE_APPLE_MAC
+
+/* Define to 1 if you have the <assert.h> header file. */
+#undef HAVE_ASSERT_H
+
+/* Define to 1 if you have the 'atexit' function. */
+#undef HAVE_ATEXIT
+
+/* Define to 1 if you have the <complex.h> header file. */
+#undef HAVE_COMPLEX_H
+
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#undef HAVE_DLFCN_H
+
+/* Define to 1 if you have the <fcntl.h> header file. */
+#undef HAVE_FCNTL_H
+
+/* Define to 1 if you have the 'floor' function. */
+#undef HAVE_FLOOR
+
+/* Define to 1 if you have the 'getpagesize' function. */
+#undef HAVE_GETPAGESIZE
+
+/* Define to 1 if you have the 'gettimeofday' function. */
+#undef HAVE_GETTIMEOFDAY
+
+/* Define to 1 if the system has the type 'intptr_t'. */
+#undef HAVE_INTPTR_T
+
+/* Define to 1 if you have the <inttypes.h> header file. */
+#undef HAVE_INTTYPES_H
+
+/* Define to 1 if you have the 'm' library (-lm). */
+#undef HAVE_LIBM
+
+/* Define to 1 if you have the 'mpi' library (-lmpi). */
+#undef HAVE_LIBMPI
+
+/* Define to 1 if you have the <limits.h> header file. */
+#undef HAVE_LIMITS_H
+
+/* Define on Linux. */
+#undef HAVE_LINUX
+
+/* Define to 1 if you have the 'memcpy' function. */
+#undef HAVE_MEMCPY
+
+/* Define to 1 if you have the 'memmove' function. */
+#undef HAVE_MEMMOVE
+
+/* Define to 1 if you have the 'memset' function. */
+#undef HAVE_MEMSET
+
+/* Define to 1 if you have the <mpi.h> header file. */
+#undef HAVE_MPI_H
+
+/* Define if multiple weak symbols may be defined */
+#undef HAVE_MULTIPLE_PRAGMA_WEAK
+
+/* Define to 1 if you have the 'posix_memalign' function. */
+#undef HAVE_POSIX_MEMALIGN
+
+/* Define to 1 if you have the 'pow' function. */
+#undef HAVE_POW
+
+/* Cray style weak pragma */
+#undef HAVE_PRAGMA_CRI_DUP
+
+/* HP style weak pragma */
+#undef HAVE_PRAGMA_HP_SEC_DEF
+
+/* Supports weak pragma */
+#undef HAVE_PRAGMA_WEAK
+
+/* Define to 1 if the system has the type 'ptrdiff_t'. */
+#undef HAVE_PTRDIFF_T
+
+/* Define to 1 if you have the 'sqrt' function. */
+#undef HAVE_SQRT
+
+/* Define to 1 if you have the <stddef.h> header file. */
+#undef HAVE_STDDEF_H
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#undef HAVE_STDINT_H
+
+/* Define to 1 if you have the <stdio.h> header file. */
+#undef HAVE_STDIO_H
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#undef HAVE_STDLIB_H
+
+/* Define to 1 if you have the 'strerror' function. */
+#undef HAVE_STRERROR
+
+/* Define to 1 if you have the <strings.h> header file. */
+#undef HAVE_STRINGS_H
+
+/* Define to 1 if you have the <string.h> header file. */
+#undef HAVE_STRING_H
+
+/* Define to 1 if you have the 'strrchr' function. */
+#undef HAVE_STRRCHR
+
+/* Define to 1 if you have the 'strtol' function. */
+#undef HAVE_STRTOL
+
+/* Define to 1 if you have the <sys/param.h> header file. */
+#undef HAVE_SYS_PARAM_H
+
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/time.h> header file. */
+#undef HAVE_SYS_TIME_H
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#undef HAVE_UNISTD_H
+
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
+#undef LT_OBJDIR
+
+/* Name of package */
+#undef PACKAGE
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+/* Define to 1 if all of the C89 standard headers exist (not just the ones
+   required in a freestanding environment). This macro is provided for
+   backward compatibility; new code need not use it. */
+#undef STDC_HEADERS
+
+/* Define if weak symbols should be used */
+#undef USE_WEAK_SYMBOLS
+
+/* Version number of package */
+#undef VERSION
+
+/* Define for Solaris 2.5.1 so the uint32_t typedef from <sys/synch.h>,
+   <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
+   #define below would cause a syntax error. */
+#undef _UINT32_T
+
+/* Define for Solaris 2.5.1 so the uint64_t typedef from <sys/synch.h>,
+   <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
+   #define below would cause a syntax error. */
+#undef _UINT64_T
+
+/* Define to empty if 'const' does not conform to ANSI C. */
+#undef const
+
+/* Define to '__inline__' or '__inline' if that's what the C compiler
+   calls it, or to nothing if 'inline' is not supported under any name.  */
+#ifndef __cplusplus
+#undef inline
+#endif
+
+/* Define to the type of a signed integer type of width exactly 32 bits if
+   such a type exists and the standard includes do not define it. */
+#undef int32_t
+
+/* Define to the type of a signed integer type of width exactly 64 bits if
+   such a type exists and the standard includes do not define it. */
+#undef int64_t
+
+/* Define to the equivalent of the C99 'restrict' keyword, or to
+   nothing if this is not supported.  Do not define if restrict is
+   supported only directly.  */
+#undef restrict
+/* Work around a bug in older versions of Sun C++, which did not
+   #define __restrict__ or support _Restrict or __restrict__
+   even though the corresponding Sun C compiler ended up with
+   "#define restrict _Restrict" or "#define restrict __restrict__"
+   in the previous line.  This workaround can be removed once
+   we assume Oracle Developer Studio 12.5 (2016) or later.  */
+#if defined __SUNPRO_CC && !defined __RESTRICT && !defined __restrict__
+# define _Restrict
+# define __restrict__
+#endif
+
+/* Define as 'unsigned int' if <stddef.h> doesn't define. */
+#undef size_t
+
+/* Define to the type of an unsigned integer type of width exactly 32 bits if
+   such a type exists and the standard includes do not define it. */
+#undef uint32_t
+
+/* Define to the type of an unsigned integer type of width exactly 64 bits if
+   such a type exists and the standard includes do not define it. */
+#undef uint64_t
+
+#endif /* _SHMEMCONF_H_ */

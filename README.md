@@ -5,14 +5,14 @@ OSHMPI: OpenSHMEM over MPI-3
 
 Bug fixes and specific feature requests will be addressed as time permits.  We will try to read and comment on issues and pull requests promptly.
 
-We recommend you use [Sandia OpenSHMEM](https://github.com/Sandia-OpenSHMEM/SOS) to get the latest OpenSHMEM features.  We tried to support OpenSHMEM 1.2 but have no plans to support OpenSHMEM 1.3 or later.
+We recommend you use [Sandia OpenSHMEM](https://github.com/Sandia-OpenSHMEM/SOS) to get the latest OpenSHMEM features.  This branch implements the OpenSHMEM 1.6 C API: the 1.3 base (including the standard shmem_malloc/shmem_calloc/shmem_free/shmem_realloc/shmem_align names), contexts, teams and team collectives, put with signal, nonblocking atomics, `wait_until`/`test` on arrays of variables, `shmem_malloc_with_hints`, scans, interleaved block transfers, `shmem_pe_quiet`, and repeated initialization.  `docs/COMPLIANCE.md` lists the deviations; `SHMEM_MINOR_VERSION` reports 6.
 
 Test Status
 ===========
 
-We currently test with MPICH 3.2 on Ubuntu.
+A C11 compiler and MPI-3 are required.  We test with MPICH and Open MPI on Ubuntu and macOS using GitHub Actions.
 
-[![Build Status](https://travis-ci.org/jeffhammond/oshmpi.svg?branch=master)](https://travis-ci.org/jeffhammond/oshmpi)
+[![CI](https://github.com/jeffhammond/oshmpi/actions/workflows/ci.yml/badge.svg)](https://github.com/jeffhammond/oshmpi/actions/workflows/ci.yml)
 
 Publications
 ============
@@ -53,11 +53,32 @@ To this end, we support all valid performance-related info
 keys and ensure the correct semantics when they are enabled
 and disabled.
 
-When OSHMPI is used within an SMP, we employ shared-memory 
-windows to bypass MPI in Put, Get and Atomic operations to use only
-load-store instructions or GCC intrinsics.
-However, for strided, we still use MPI within an SMP because the lead
-developer is a lazy bum.
+Direct access to the symmetric heap is detected at run time.  The heap is always
+created with `MPI_Win_allocate`; at startup OSHMPI calls `MPI_Win_shared_query`
+(which MPI 4.1 allows on any allocated window) for every PE.  If every PE's heap
+is mapped into the calling process, which in practice means the job runs on one
+node and the MPI library supports it (Open MPI 6.0 and later does, for osc/ucx,
+osc/rdma and osc/sm), all operations on the heap bypass MPI: puts, gets and strided
+transfers are `memcpy`s, and every atomic is a GCC/Clang `__atomic` builtin.  Direct
+access is all or nothing across the job, so hardware atomics are never mixed with
+MPI atomics on the same word, and `shmem_ptr` returns usable addresses.  The data
+segment still uses MPI.  With an MPI library that does not support the query,
+OSHMPI uses MPI RMA for everything, as before.
+
+Two environment variables control this: `OSHMPI_DIRECT=0` forces MPI RMA, and
+`OSHMPI_VERBOSE=1` makes PE 0 report whether direct access is enabled.
+
+Single-node results from `tools/microbench.c` with 2 PEs (one run each on an aarch64
+machine, so treat them as indicative; `oshcc -O2 tools/microbench.c`):
+
+| | Open MPI 5.0.10, MPI RMA | Open MPI 6.0, `OSHMPI_DIRECT=0` | Open MPI 6.0, direct |
+|---|---|---|---|
+| 8-byte put + quiet | 3.32 us | 0.12 us | 0.08 us |
+| 8-byte get | 3.14 us | 0.033 us | 0.012 us |
+| atomic add rate | 11.8 Mop/s | 14.5 Mop/s | 86.6 Mop/s |
+| fetch-add latency | 3.19 us | 0.073 us | 0.013 us |
+| 1 MiB put bandwidth | 30.2 GB/s | 35.6 GB/s | 35.3 GB/s |
+| barrier | 0.46 us | 0.37 us | 0.35 us |
 
 Future Work
 ===========
@@ -75,5 +96,4 @@ We look forward to patches addressing the following:
 
 * Mac non-heap symmetric data cannot be accessed remotely reliably.
 * PSHMEM interface
-* Fortran interface
 * OpenSHMEM 1.3 changes
